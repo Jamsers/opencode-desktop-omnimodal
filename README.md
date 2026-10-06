@@ -66,9 +66,22 @@ bun --cwd packages/desktop ./scripts/build-omnimodal.ts
 bun --cwd packages/desktop ./scripts/build-omnimodal.ts --installer
 ```
 
-Set `OPENCODE_VERSION` to change the fork's version (default `1.0.0`). Attach installers built
-with `--installer` to this repository's GitHub releases; installed copies update from those
-releases automatically.
+Set `OPENCODE_VERSION` to change the fork's version (default `1.0.0`).
+
+### Releasing
+
+Releases are cut with the fork's release script, which builds the host platform's installers and
+publishes a GitHub release that installed copies update from:
+
+```bash
+bun --cwd packages/desktop ./scripts/release-omnimodal.ts 1.0.2   # or --bump=patch
+```
+
+Release tags are namespaced `omnimodal-v<version>` (upstream's legacy `v1.x` tags occupy plain
+`v1.x`), while the app version stays on the `1.x` line. electron-builder's Linux/macOS packaging
+tools are host-native, so a Windows machine builds win-x64 only: run the script again on a Linux
+or macOS host with `--attach <version> --targets=linux-x64` (or `mac-arm64`) to add that
+platform's installers to the same release.
 
 The installation instructions below apply to official OpenCode releases.
 

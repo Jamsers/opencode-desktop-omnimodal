@@ -77,8 +77,9 @@ export function getCurrentCli(target = CLI_TARGET ?? nativeTarget()) {
   return binaryConfig
 }
 
-export async function downloadCliToResources(version = CLI_VERSION, dest = windowsify("resources/opencode-cli")) {
+export async function downloadCliToResources(version = CLI_VERSION, dest?: string) {
   const cli = getCurrentCli()
+  dest ??= windowsify("resources/opencode-cli", cli.os)
   const directory = await mkdtemp(join(tmpdir(), "opencode-cli-"))
 
   try {
@@ -91,8 +92,9 @@ export async function downloadCliToResources(version = CLI_VERSION, dest = windo
   console.log(`Copied ${cli.package}@${version} to ${dest}`)
 }
 
-export async function copyBuiltCliToResources(root: string, dest = windowsify("resources/opencode-cli")) {
+export async function copyBuiltCliToResources(root: string, dest?: string) {
   const cli = getCurrentCli()
+  dest ??= windowsify("resources/opencode-cli", cli.os)
   const directory = cli.package.replace("@opencode/", "")
   await copyCliToResources(join(root, directory), dest)
 }
@@ -103,7 +105,7 @@ export async function copyBuiltCliToResources(root: string, dest = windowsify("r
 async function copyCliToResources(pkg: string, dest: string) {
   const cli = getCurrentCli()
   await copyFile(join(pkg, "bin", cli.os === "win32" ? "opencode.exe" : "opencode"), dest)
-  await prepareCli(dest)
+  await prepareCli(dest, cli.os)
   const manifest = (await Bun.file(join(pkg, "package.json")).json()) as { version?: string }
 
   if (!manifest.version) throw new Error(`Bundled CLI package has no version: ${pkg}`)
@@ -114,18 +116,21 @@ export function versionFile(cli: string) {
   return join(dirname(cli), "opencode-cli.version")
 }
 
-async function prepareCli(dest: string) {
-  if (process.platform !== "win32") await chmod(dest, 0o755)
+// The staged binary belongs to the build TARGET, which can differ from the host when cross-building
+// (release-omnimodal.ts does this for linux-x64 and mac-arm64). Naming, permissions and signing all
+// follow the target; the signing tools themselves still require their native host.
+async function prepareCli(dest: string, os: string) {
+  if (os !== "win32") await chmod(dest, 0o755)
 
-  if (process.platform === "win32" && process.env.GITHUB_ACTIONS === "true") {
+  if (os === "win32" && process.platform === "win32" && process.env.GITHUB_ACTIONS === "true") {
     await $`pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ../../script/sign-windows.ps1 ${dest}`
   }
 
-  if (process.platform === "darwin") await $`codesign --force --sign - ${dest}`
+  if (os === "darwin" && process.platform === "darwin") await $`codesign --force --sign - ${dest}`
 }
 
-export function windowsify(path: string) {
+export function windowsify(path: string, os = process.platform) {
   if (path.endsWith(".exe")) return path
 
-  return `${path}${process.platform === "win32" ? ".exe" : ""}`
+  return `${path}${os === "win32" ? ".exe" : ""}`
 }
