@@ -574,6 +574,7 @@ export const dict = {
   "titlebar.channel.local": "Local",
   "titlebar.channel.dev": "Dev",
   "titlebar.channel.beta": "Beta",
+  "titlebar.channel.omnimodal": "Omnimodal",
 
   "common.closeTab": "Close tab",
   "common.dismiss": "Dismiss",

@@ -4,7 +4,7 @@ import { enableCompileCache } from "node:module"
 import { homedir, tmpdir } from "node:os"
 import path from "node:path"
 import { app } from "electron"
-import { APP_ID, APP_NAME } from "../constants"
+import { APP_ID, APP_NAME, USER_DATA_ID } from "../constants"
 
 const testOnboarding = process.env.OPENCODE_TEST_ONBOARDING === "1"
 
@@ -30,7 +30,7 @@ export function configureApplication() {
     app.commandLine.appendSwitch("remote-debugging-port", process.env.OPENCODE_DESKTOP_REMOTE_DEBUGGING_PORT ?? "9222")
 
   const testRoot = createTestRoot()
-  app.setPath("userData", testRoot ? path.join(testRoot, "desktop") : path.join(app.getPath("appData"), APP_ID))
+  app.setPath("userData", testRoot ? path.join(testRoot, "desktop") : path.join(app.getPath("appData"), USER_DATA_ID))
 
   if (testRoot) {
     app.setPath("sessionData", path.join(testRoot, "session"))

@@ -27,3 +27,7 @@ const appIDs: Record<string, string> = {
 export const APP_NAME = app.isPackaged ? appNames[CHANNEL] : "OpenCode Dev"
 
 export const APP_ID = app.isPackaged ? appIDs[CHANNEL] : "ai.opencode.desktop.dev"
+
+// The fork swaps in place with official OpenCode: user data (settings, windows, drafts) is shared
+// with the stable channel while install and taskbar identity stay fork-specific.
+export const USER_DATA_ID = CHANNEL === "omnimodal" ? appIDs.prod : APP_ID
