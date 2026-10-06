@@ -11,6 +11,14 @@ This repository is `opencode-desktop-omnimodal`, a personal fork of OpenCode (up
 - The fork is rebased onto official release tags, not upstream development branches. The weekly sync fetches `upstream` tags and merges the newest `v2.x.y` release tag into `desktop-omnimodal`.
 - Do not merge upstream `dev` or other development branches in place of a release tag.
 
+## Fork Build
+
+- Build with `bun --cwd packages/desktop ./scripts/build-omnimodal.ts` (`--installer` produces the publishable NSIS installer). `OPENCODE_VERSION` sets the fork's product version; it starts at `1.0.0` and never follows upstream's `2.x` numbering.
+- The desktop shell builds with `OPENCODE_CHANNEL=omnimodal` (fork identity lives in the `omnimodal` entries of `packages/desktop/src/main/constants.ts`, `packages/desktop/electron-builder.config.ts`, `packages/desktop/scripts/utils.ts`, the `Build` channel union in `packages/gui-extensions/src/sdk/core.ts`, and `packages/desktop/icons/omnimodal`), but `packages/cli` must build with `OPENCODE_CHANNEL=latest`. A CLI built on any other channel registers its background service as `service-<channel>.json` instead of `service.json`, and the desktop hangs on its loading screen waiting for `service.json`.
+- Fork installers publish to and update from this repository's GitHub releases only. Never point the fork at official OpenCode update feeds or reuse official version numbers.
+- The fork's NSIS installer is assisted (`oneClick: false`) on purpose: one-click per-user installers name their directory after the npm package (`@opencode-desktop`), colliding with official installs. Do not switch it back to one-click.
+- Fork and official installs share one background service and one data directory by design; whichever app launches swaps the service to its own version. Do not add fork changes to make them co-run.
+
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk` composes Client, Core, and Server.
 - Current implementation changes belong in `packages/core`, `packages/cli`, `packages/server`, `packages/protocol`, `packages/schema`, and related generated client surfaces when required.

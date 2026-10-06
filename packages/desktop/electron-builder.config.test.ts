@@ -14,6 +14,7 @@ const channels = [
   { channel: "dev", appId: "ai.opencode.desktop.dev" },
   { channel: "beta", appId: "ai.opencode.desktop.beta" },
   { channel: "prod", appId: "ai.opencode.desktop" },
+  { channel: "omnimodal", appId: "ai.opencode.desktop.omnimodal" },
 ] as const
 
 async function load(channel: string) {
@@ -51,6 +52,10 @@ test.each(channels)("channel identity for $channel", async ({ channel, appId }) 
       fpm?.some((entry) => entry.endsWith("opencode-desktop.desktop=/usr/share/applications/opencode-desktop.desktop")),
     ).toBe(channel === "prod")
   }
+
+  // Assisted installers name their directory after the product; one-click per-user installers
+  // would fall back to the npm package name (`@opencode-desktop`) and collide with official installs.
+  expect(config.nsis?.oneClick).toBe(channel !== "omnimodal")
 })
 
 test("legacy Linux launcher stays hidden", async () => {

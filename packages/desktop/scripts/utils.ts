@@ -5,12 +5,12 @@ import { dirname, join } from "node:path"
 
 const CLI_VERSION = "dev"
 
-export type Channel = "dev" | "beta" | "prod"
+export type Channel = "dev" | "beta" | "prod" | "omnimodal"
 
 export function resolveChannel(): Channel {
   const raw = Bun.env.OPENCODE_CHANNEL
 
-  if (raw === "dev" || raw === "beta" || raw === "prod") return raw
+  if (raw === "dev" || raw === "beta" || raw === "prod" || raw === "omnimodal") return raw
 
   if (raw === "latest") return "prod"
 

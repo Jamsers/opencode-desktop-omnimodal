@@ -49,6 +49,7 @@ This repository is **opencode-desktop-omnimodal**, a personal fork of [OpenCode]
 
 - **Scope** — OpenCode Desktop with OpenRouter only.
 - **Upstream** — Tracks official OpenCode v2 releases (currently `v2.0.24`), re-synced weekly.
+- **Identity** — Versioned independently (starting at `1.0.0`) and installed as **OpenCode Omnimodal** (`ai.opencode.desktop.omnimodal`), so it co-installs beside official OpenCode. Its installers update from this repository's GitHub releases and never follow official OpenCode update channels.
 - **Not affiliated** — This fork is not built by the OpenCode team and is not affiliated with them in any way.
 
 ### Building from source
@@ -57,14 +58,17 @@ To use this fork, build it from source instead of installing official OpenCode:
 
 ```bash
 bun install
-bun run dev:desktop                       # run the desktop app in development mode
 
-# package a desktop build
-cd packages/desktop
-bun run prebuild                          # dev channel by default
-bun run build
-bun run package:win                       # or package:mac / package:linux
+# run the app from packages/desktop/dist/win-unpacked
+bun --cwd packages/desktop ./scripts/build-omnimodal.ts
+
+# build a Windows installer to publish on the releases page
+bun --cwd packages/desktop ./scripts/build-omnimodal.ts --installer
 ```
+
+Set `OPENCODE_VERSION` to change the fork's version (default `1.0.0`). Attach installers built
+with `--installer` to this repository's GitHub releases; installed copies update from those
+releases automatically.
 
 The installation instructions below apply to official OpenCode releases.
 

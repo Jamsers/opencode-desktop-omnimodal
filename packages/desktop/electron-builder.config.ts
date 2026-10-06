@@ -54,7 +54,7 @@ function macSignOptions(options: CustomMacSignOptions): CustomMacSignOptions {
 const channel = (() => {
   const raw = process.env.OPENCODE_CHANNEL
 
-  if (raw === "dev" || raw === "beta" || raw === "prod") return raw
+  if (raw === "dev" || raw === "beta" || raw === "prod" || raw === "omnimodal") return raw
 
   if (raw === "latest") return "prod"
 
@@ -65,6 +65,7 @@ const APP_IDS = {
   dev: "ai.opencode.desktop.dev",
   beta: "ai.opencode.desktop.beta",
   prod: "ai.opencode.desktop",
+  omnimodal: "ai.opencode.desktop.omnimodal",
 } as const
 
 const getBase = (appId: string): Configuration => ({
@@ -215,6 +216,33 @@ function getConfig() {
         },
         deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
         rpm: { packageName: "opencode", fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
+      }
+    }
+
+    // The omnimodal fork is a separately versioned product that co-installs beside official
+    // OpenCode. Its installers publish to this fork's GitHub repository and update from its
+    // releases; they never follow the official opencode.ai update feed. The assisted installer
+    // is required for co-installation: one-click per-user installers name their directory after
+    // the npm package (`@opencode-desktop`), colliding with official installs.
+    case "omnimodal": {
+      return {
+        ...base,
+        appId,
+        productName: "OpenCode Omnimodal",
+        artifactName: "opencode-desktop-omnimodal-${os}-${arch}.${ext}",
+        protocols: { name: "OpenCode Omnimodal", schemes: ["opencode"] },
+        publish: {
+          provider: "github",
+          owner: "Jamsers",
+          repo: "opencode-desktop-omnimodal",
+        },
+        extraMetadata: {
+          ...base.extraMetadata,
+          version: process.env.OPENCODE_VERSION ?? "1.0.0",
+        },
+        nsis: { ...base.nsis, oneClick: false },
+        deb: { fpm: [metainfoFpm(appId)] },
+        rpm: { packageName: "opencode-omnimodal", fpm: [metainfoFpm(appId)] },
       }
     }
   }

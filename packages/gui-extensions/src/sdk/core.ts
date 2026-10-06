@@ -62,8 +62,9 @@ export interface Build {
    * - `dev`: the development channel.
    * - `beta`: the beta channel.
    * - `prod`: the stable release.
+   * - `omnimodal`: the omnimodal fork's release.
    */
-  readonly channel: "local" | "dev" | "beta" | "prod"
+  readonly channel: "local" | "dev" | "beta" | "prod" | "omnimodal"
   /**
    * Where the code runs. Main is always `desktop`.
    * - `web`: a browser tab.
