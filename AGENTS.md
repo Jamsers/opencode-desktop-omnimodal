@@ -1,10 +1,23 @@
+## Fork Scope
+
+This repository is `opencode-desktop-omnimodal`, a personal fork of OpenCode (upstream: `anomalyco/opencode`). Its only feature scope is omnimodal file ingestion for the OpenCode Desktop app with OpenRouter as the provider: audio, video, and document files (OpenRouter's `file` input type) attachable by drag-and-drop or `@` file mentions, and readable by agents through the Read tool the same way images are today.
+
+- Keep changes minimal and constrained to that scope. Official upstream `v2.x.y` release tags are merged in weekly, so prefer small, leaf-level, additive edits (whitelist widenings, protocol-lowering branches) over restructuring upstream code, and keep fork deltas localized to as few files as possible.
+- Desktop + OpenRouter is the only supported use case. Do not extend fork changes to other providers or the TUI; shared code that web also consumes may change when it falls out for free.
+- When resolving conflicts against an upstream release, prefer upstream's version unless the conflict overlaps a fork change, then re-apply the fork delta on top.
+
+## Upstream Sync
+
+- The fork is rebased onto official release tags, not upstream development branches. The weekly sync fetches `upstream` tags and merges the newest `v2.x.y` release tag into `desktop-omnimodal`.
+- Do not merge upstream `dev` or other development branches in place of a release tag.
+
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk` composes Client, Core, and Server.
 - Current implementation changes belong in `packages/core`, `packages/cli`, `packages/server`, `packages/protocol`, `packages/schema`, and related generated client surfaces when required.
 - This repository does not use Changesets. Do not add `.changeset` files; follow the existing release workflow instead.
-- The default branch in this repo is `v2`.
-- Default new branches and worktrees to `v2`, or `origin/v2` when the local `v2` ref is unavailable, and default pull requests to target `v2`. Use another base or target branch when the requester explicitly instructs it.
-- Local `main` ref may not exist; use `v2` or `origin/v2` for diffs.
+- The default branch in this repo is `desktop-omnimodal`.
+- Default new branches and worktrees to `desktop-omnimodal`, or `origin/desktop-omnimodal` when the local ref is unavailable, and default pull requests to target `desktop-omnimodal`. Use another base or target branch when the requester explicitly instructs it.
+- Local `main` ref may not exist; use `desktop-omnimodal` or `origin/desktop-omnimodal` for diffs.
 
 ## Live V2 TUI Testing
 

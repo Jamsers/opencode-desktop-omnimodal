@@ -43,6 +43,31 @@
 
 ---
 
+### This Fork
+
+This repository is **opencode-desktop-omnimodal**, a personal fork of [OpenCode](https://github.com/anomalyco/opencode) that adds omnimodal file ingestion to the desktop app: audio, video, and document files (the `file` input type OpenRouter defines) attachable by drag-and-drop or `@` file mentions, and read by models natively through OpenRouter the same way images are today. Aside from this fork's changes, the rest of this README describes stock OpenCode.
+
+- **Scope** — OpenCode Desktop with OpenRouter only.
+- **Upstream** — Tracks official OpenCode v2 releases (currently `v2.0.24`), re-synced weekly.
+- **Not affiliated** — This fork is not built by the OpenCode team and is not affiliated with them in any way.
+
+### Building from source
+
+To use this fork, build it from source instead of installing official OpenCode:
+
+```bash
+bun install
+bun run dev:desktop                       # run the desktop app in development mode
+
+# package a desktop build
+cd packages/desktop
+bun run prebuild                          # dev channel by default
+bun run build
+bun run package:win                       # or package:mac / package:linux
+```
+
+The installation instructions below apply to official OpenCode releases.
+
 ### Installation
 
 ```bash
