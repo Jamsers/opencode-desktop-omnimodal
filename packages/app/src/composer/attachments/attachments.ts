@@ -264,6 +264,13 @@ export function createComposerAttachments(
 
 const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
 
+const documentMimes = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+])
+
 // The server rejects inline attachments above this size, so larger media takes the path route.
 const MAX_INLINE_BYTES = 20 * 1024 * 1024
 
@@ -271,17 +278,42 @@ const MAX_INLINE_BYTES = 20 * 1024 * 1024
 function native(mime: string, input: AttachmentDestination["input"]) {
   if (imageMimes.has(mime)) return input.image
 
-  if (mime === "application/pdf") return input.pdf
+  if (documentMimes.has(mime)) return input.pdf
+
+  if (mime.startsWith("audio/")) return input.audio
+
+  if (mime.startsWith("video/")) return input.video
 
   return false
 }
 
-const imageExtensions = new Map([
+function nativeMime(mime: string) {
+  return imageMimes.has(mime) || documentMimes.has(mime) || mime.startsWith("audio/") || mime.startsWith("video/")
+}
+
+const mediaExtensions = new Map([
   ["gif", "image/gif"],
   ["jpeg", "image/jpeg"],
   ["jpg", "image/jpeg"],
   ["png", "image/png"],
   ["webp", "image/webp"],
+  ["pdf", "application/pdf"],
+  ["docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ["xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+  ["pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+  ["mp3", "audio/mpeg"],
+  ["m4a", "audio/mp4"],
+  ["wav", "audio/wav"],
+  ["ogg", "audio/ogg"],
+  ["flac", "audio/flac"],
+  ["aac", "audio/aac"],
+  ["aiff", "audio/aiff"],
+  ["mp4", "video/mp4"],
+  ["m4v", "video/mp4"],
+  ["mov", "video/quicktime"],
+  ["mpeg", "video/mpeg"],
+  ["mpg", "video/mpeg"],
+  ["webm", "video/webm"],
 ])
 
 const textMimes = new Set([
@@ -299,10 +331,10 @@ const textMimes = new Set([
 async function attachmentMime(file: File) {
   const type = file.type.split(";", 1)[0]?.trim().toLowerCase() ?? ""
 
-  if (imageMimes.has(type) || type === "application/pdf") return type
+  if (nativeMime(type)) return type
   const index = file.name.lastIndexOf(".")
   const suffix = index === -1 ? "" : file.name.slice(index + 1).toLowerCase()
-  const fallback = imageExtensions.get(suffix) ?? (suffix === "pdf" ? "application/pdf" : undefined)
+  const fallback = mediaExtensions.get(suffix)
 
   if ((!type || type === "application/octet-stream") && fallback) return fallback
 

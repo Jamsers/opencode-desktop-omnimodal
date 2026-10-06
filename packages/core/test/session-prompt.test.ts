@@ -485,6 +485,30 @@ describe("Session.prompt", () => {
     }),
   )
 
+  it.effect("resolves office document attachments by file name", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* Session.Service
+      const data = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00]).toString("base64")
+
+      const message = yield* session.prompt({
+        sessionID,
+        text: "Inspect this",
+        files: [{ uri: `data:application/octet-stream;base64,${data}`, name: "notes.docx" }],
+        resume: false,
+      })
+
+      expect(message.payload.files).toEqual([
+        {
+          data,
+          mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          source: { type: "inline" },
+          name: "notes.docx",
+        },
+      ])
+    }),
+  )
+
   it.effect("rejects malformed base64 data URLs", () =>
     Effect.gen(function* () {
       yield* setup

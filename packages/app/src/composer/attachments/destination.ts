@@ -8,7 +8,7 @@ import type { ComposerControls } from "../adapter"
 // Where a prompt is headed: the model that reads it and the server that runs its tools.
 export type AttachmentDestination = {
   /** Input modalities the selected model reads natively. */
-  input: { image: boolean; pdf: boolean }
+  input: { image: boolean; pdf: boolean; audio: boolean; video: boolean }
   /** The server shares the client's filesystem, so an attachment's source path resolves as-is. */
   local: boolean
   /** Streams a file into the server's temporary directory and returns its absolute path there. */
@@ -21,7 +21,7 @@ export function useAttachmentDestination(controls: Accessor<ComposerControls>) {
   const location = useWorkspaceLocation()
 
   return (): AttachmentDestination => ({
-    input: controls().model.selection.current()?.capabilities.input ?? { image: false, pdf: false },
+    input: controls().model.selection.current()?.capabilities.input ?? { image: false, pdf: false, audio: false, video: false },
     local: server.isLocal,
     upload: async (file, report, signal) => {
       const info = await sdk.api.server.info({ signal })

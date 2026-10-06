@@ -24,6 +24,7 @@ import {
 } from "../schema/index.js"
 import { classifyProviderFailure } from "../provider-error.js"
 import { isRecord, JsonObject, optionalArray, optionalNull, ProviderShared } from "./shared.js"
+import { isDocumentMediaType, mediaTypeExtension } from "../utils/media-type.js"
 import { OpenAIOptions } from "./utils/openai-options.js"
 import { Lifecycle } from "./utils/lifecycle.js"
 import { ToolStream } from "./utils/tool-stream.js"
@@ -130,6 +131,15 @@ const OpenAIChatUserContent = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("file"),
     file: Schema.Struct({ filename: Schema.String, file_data: Schema.String }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("input_audio"),
+    input_audio: Schema.Struct({ data: Schema.String, format: Schema.String }),
+  }),
+  // OpenRouter extension; only lowered when `LoweringOptions.media.video` opts in.
+  Schema.Struct({
+    type: Schema.Literal("video_url"),
+    video_url: Schema.Struct({ url: Schema.String }),
   }),
 ])
 type OpenAIChatUserContent = Schema.Schema.Type<typeof OpenAIChatUserContent>
@@ -328,6 +338,8 @@ interface LoweringOptions {
   readonly toolCallID?: (id: string) => string
   /** Project provider-specific fields from the exact source, even when other messages are dropped during lowering. */
   readonly assistant?: (source: LLMRequest["messages"][number], message: OpenAIChatMessage) => OpenAIChatMessage
+  /** OpenRouter widens Chat Completions media: `file` parts beyond PDFs, and `video_url` parts. */
+  readonly media?: { readonly documents?: boolean; readonly video?: boolean }
 }
 
 const lowerTool = (tool: ToolDefinition, options: LoweringOptions, supportsStrictMode: boolean): OpenAIChatTool => ({
@@ -362,16 +374,60 @@ const lowerToolCall = (
   extra_content: decodeExtraContent(part.providerMetadata?.[options.providerMetadataKey]?.extraContent),
 })
 
-const lowerMedia = Effect.fnUntraced(function* (part: MediaPart) {
-  // Chat Completions accepts PDFs, and no other documents, as inline `file` parts; file URLs are not supported.
-  if (part.media.mediaType.toLowerCase() === "application/pdf")
+// `input_audio.format` names per the OpenAI audio input vocabulary, as widened by OpenRouter.
+const AUDIO_FORMATS: Readonly<Record<string, string>> = {
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/wave": "wav",
+  "audio/aac": "aac",
+  "audio/ogg": "ogg",
+  "audio/flac": "flac",
+  "audio/x-flac": "flac",
+  "audio/mp4": "m4a",
+  "audio/m4a": "m4a",
+  "audio/x-m4a": "m4a",
+  "audio/aiff": "aiff",
+  "audio/x-aiff": "aiff",
+}
+
+const lowerMedia = Effect.fnUntraced(function* (part: MediaPart, options: LoweringOptions) {
+  const mediaType = part.media.mediaType.toLowerCase()
+  // Chat Completions accepts PDFs as inline `file` parts; file URLs are not supported. OpenRouter widens `file` to
+  // office documents behind `options.media.documents`.
+  if (isDocumentMediaType(mediaType)) {
+    if (mediaType !== "application/pdf" && !options.media?.documents)
+      return yield* ProviderShared.invalidRequest(`OpenAI Chat does not support media type ${part.media.mediaType}`)
     return {
       type: "file" as const,
       file: {
-        filename: part.filename ?? "document.pdf",
+        filename: part.filename ?? `document.${mediaTypeExtension(mediaType) ?? "pdf"}`,
         file_data: (yield* ProviderShared.requireInlineMedia("OpenAI Chat", part.media)).dataUrl,
       },
     }
+  }
+  if (part.media.kind === "audio") {
+    const format = AUDIO_FORMATS[mediaType]
+    if (!format) return yield* ProviderShared.invalidRequest(`OpenAI Chat does not support media type ${part.media.mediaType}`)
+    return {
+      type: "input_audio" as const,
+      input_audio: { data: (yield* ProviderShared.requireInlineMedia("OpenAI Chat", part.media)).base64, format },
+    }
+  }
+  // `video_url` is an OpenRouter extension over Chat Completions.
+  if (part.media.kind === "video") {
+    if (!options.media?.video)
+      return yield* ProviderShared.invalidRequest(`OpenAI Chat does not support media type ${part.media.mediaType}`)
+    return {
+      type: "video_url" as const,
+      video_url: {
+        url:
+          ProviderShared.mediaUrl(part.media) ??
+          (yield* ProviderShared.requireInlineMedia("OpenAI Chat", part.media)).dataUrl,
+      },
+    }
+  }
   if (part.media.kind !== "image")
     return yield* ProviderShared.invalidRequest(`OpenAI Chat does not support media type ${part.media.mediaType}`)
   const url =
@@ -419,7 +475,7 @@ const lowerUserMessage = Effect.fnUntraced(function* (
       continue
     }
     if (part.type === "media") {
-      content.push(yield* lowerMedia(part))
+      content.push(yield* lowerMedia(part, options))
       continue
     }
     return yield* ProviderShared.unsupportedContent("OpenAI Chat", "user", ["text", "media"])
@@ -522,7 +578,7 @@ const lowerToolMessages = Effect.fnUntraced(function* (
       toolMessage(options.toolCallID?.(part.id) ?? part.id, text.join("\n"), options.cacheControl?.(part.cache)),
     )
     const files = content.filter((item) => item.type === "file")
-    attachments.push(...(yield* Effect.forEach(files, (item) => lowerMedia(ProviderShared.toolFileMedia(item)))))
+    attachments.push(...(yield* Effect.forEach(files, (item) => lowerMedia(ProviderShared.toolFileMedia(item), options))))
   }
   return { messages, attachments }
 })

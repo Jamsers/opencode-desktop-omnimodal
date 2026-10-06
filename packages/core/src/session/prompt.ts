@@ -110,7 +110,8 @@ const materializeAttachment = Effect.fn("SessionPrompt.materializeAttachment")(f
       message: `Attachment exceeds the ${MAX_ATTACHMENT_BYTES} byte limit: ${label}`,
     })
 
-  const mime = resolved.mime ?? Mime.detect(resolved.bytes)
+  // Office documents share a zip signature; the attachment's name disambiguates them after sniffing.
+  const mime = resolved.mime ?? Mime.detectNamed(resolved.bytes, input.name ?? resolved.name)
   const content =
     mime === "text/plain" && resolved.start !== undefined
       ? Buffer.from(

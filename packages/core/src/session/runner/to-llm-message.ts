@@ -12,6 +12,7 @@ import { Option, Schema } from "effect"
 import { fileURLToPath } from "url"
 import { SessionMessage } from "../message.js"
 import { SessionProviderContext } from "../provider-context.js"
+import { Mime } from "../../mime.js"
 import type { FileAttachment } from "@opencode/schema/prompt"
 
 const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
@@ -75,7 +76,7 @@ const directoryAttachment = (file: FileAttachment): ContentPart => ({
 const attachmentContent = (file: FileAttachment): ContentPart[] => {
   if (file.mime === "text/plain") return [textAttachment(file)]
   if (file.mime === "application/x-directory") return [directoryAttachment(file)]
-  if (imageMimes.has(file.mime) || file.mime === "application/pdf") {
+  if (Mime.isMedia(file.mime)) {
     const location = attachmentLocation(file)
     return [...(location === undefined ? [] : [Message.text(`Attached file: ${location}`)]), media(file)]
   }

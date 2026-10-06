@@ -6,7 +6,7 @@ import { ProviderID } from "./schema/ids.js"
 import { AIError, HttpContext, InvalidProviderOutputError, InvalidRequestError } from "./schema/errors.js"
 import { ProviderMetadata } from "./schema/options.js"
 import { Service } from "./route/executor-service.js"
-import { detectMediaType, fileMediaType } from "./utils/media-type.js"
+import { detectMediaType, fileMediaType, isDocumentMediaType } from "./utils/media-type.js"
 
 export { detectMediaType } from "./utils/media-type.js"
 
@@ -67,7 +67,7 @@ export const kindOf = (mediaType: string): Kind => {
   if (lower.startsWith("image/")) return "image"
   if (lower.startsWith("video/")) return "video"
   if (lower.startsWith("audio/")) return "audio"
-  if (lower === "application/pdf" || lower.startsWith("text/")) return "document"
+  if (isDocumentMediaType(lower) || lower.startsWith("text/")) return "document"
   return "other"
 }
 

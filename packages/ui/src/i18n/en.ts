@@ -150,6 +150,7 @@ const source = {
   "ui.promptInput.dropFiles.image": "Drop images or files to add",
   "ui.promptInput.dropFiles.pdf": "Drop PDFs or files to add",
   "ui.promptInput.dropFiles.imagePdf": "Drop images, PDFs, or files to add",
+  "ui.promptInput.dropFiles.media": "Drop images, PDFs, audio, video, or files to add",
   "ui.promptInput.removeAttachment": "Remove attachment",
   "ui.promptInput.cancelUpload": "Cancel upload",
   "ui.promptInput.uploading": "{{percent}}%",

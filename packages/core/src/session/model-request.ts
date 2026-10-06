@@ -12,6 +12,7 @@ import {
   SystemPart,
 } from "@opencode/ai"
 import type { StreamOptions } from "@opencode/ai/route"
+import { isDocumentMediaType } from "@opencode/ai/utils/media-type"
 import type {
   SessionCompaction,
   SessionContext,
@@ -123,7 +124,8 @@ const mimeToModality = (mime: string) => {
   if (mime.startsWith("image/")) return "image"
   if (mime.startsWith("audio/")) return "audio"
   if (mime.startsWith("video/")) return "video"
-  if (mime === "application/pdf") return "pdf"
+  // The catalog has no separate document modality; office documents share `pdf`.
+  if (isDocumentMediaType(mime)) return "pdf"
 }
 
 const unsupportedMedia = (mime: string, name: string | undefined, capabilities: Model.Capabilities) => {

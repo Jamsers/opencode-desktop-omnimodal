@@ -818,15 +818,47 @@ describe("OpenAI Chat route", () => {
     }),
   )
 
-  it.effect("rejects non-image media that cannot be lowered", () =>
+  it.effect("lowers audio as input_audio parts", () =>
     Effect.gen(function* () {
-      const error = yield* compileRequest(
+      const prepared = yield* compileRequest(
         LLM.request({
           model,
-          messages: [Message.user({ type: "media", media: Media.base64("AAECAw==", "audio/mpeg") })],
+          messages: [
+            Message.user([
+              { type: "media", media: Media.base64("AAECAw==", "audio/mpeg") },
+              { type: "media", media: Media.base64("AAECAw==", "audio/wav"), filename: "clip.wav" },
+            ]),
+          ],
         }),
-      ).pipe(Effect.flip)
-      expect(error.message).toContain("OpenAI Chat does not support media type audio/mpeg")
+      )
+      expect(prepared.body.messages).toEqual([
+        {
+          role: "user",
+          content: [
+            { type: "input_audio", input_audio: { data: "AAECAw==", format: "mp3" } },
+            { type: "input_audio", input_audio: { data: "AAECAw==", format: "wav" } },
+          ],
+        },
+      ])
+    }),
+  )
+
+  it.effect("rejects non-image media that cannot be lowered", () =>
+    Effect.gen(function* () {
+      for (const mediaType of [
+        "application/zip",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "video/quicktime",
+        "audio/x-voc",
+      ]) {
+        const error = yield* compileRequest(
+          LLM.request({
+            model,
+            messages: [Message.user({ type: "media", media: Media.base64("AAECAw==", mediaType) })],
+          }),
+        ).pipe(Effect.flip)
+        expect(error.message).toContain(`OpenAI Chat does not support media type ${mediaType}`)
+      }
     }),
   )
 

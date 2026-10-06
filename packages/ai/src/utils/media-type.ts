@@ -17,7 +17,12 @@ export const detectMediaType = (bytes: Uint8Array): string | undefined => {
     if (riffType === "WAVE") return "audio/wav"
   }
   if (startsWith(bytes, [0x25, 0x50, 0x44, 0x46])) return "application/pdf"
-  if (bytes.length >= 12 && ascii(bytes, 4, 8) === "ftyp") return "video/mp4"
+  if (bytes.length >= 12 && ascii(bytes, 4, 8) === "ftyp") {
+    const brand = ascii(bytes, 8, 12)
+    if (brand === "M4A " || brand === "M4B ") return "audio/mp4"
+    if (brand === "avif" || brand === "avis") return "image/avif"
+    return brand === "qt  " ? "video/quicktime" : "video/mp4"
+  }
   if (startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3])) return "video/webm"
   if (startsWith(bytes, [0x49, 0x44, 0x33])) return "audio/mpeg"
   // An 11-bit frame sync; layer bits `00` mark AAC ADTS, any other layer is MPEG audio.
@@ -35,6 +40,9 @@ const EXTENSIONS: Readonly<Record<string, string>> = {
   gif: "image/gif",
   webp: "image/webp",
   pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   mp4: "video/mp4",
   webm: "video/webm",
   mp3: "audio/mpeg",
@@ -68,3 +76,14 @@ export const mediaTypeExtension = (mediaType: string): string | undefined => {
   const type = mediaType.split(";", 1)[0].trim().toLowerCase()
   return EXTENSION_ALIASES[type] ?? Object.entries(EXTENSIONS).find(([, known]) => known === type)?.[0]
 }
+
+const DOCUMENT_MEDIA_TYPES: ReadonlySet<string> = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+])
+
+/** PDFs and office documents: the `file` content part's domain. */
+export const isDocumentMediaType = (mediaType: string) =>
+  DOCUMENT_MEDIA_TYPES.has(mediaType.split(";", 1)[0].trim().toLowerCase())

@@ -100,7 +100,11 @@ export const protocol = Protocol.make({
   body: {
     schema: OpenRouterBody,
     from: (request) =>
-      OpenAIChat.fromRequest(request, { cacheControl: cacheControl() }).pipe(
+      OpenAIChat.fromRequest(request, {
+        cacheControl: cacheControl(),
+        // OpenRouter accepts office documents as `file` parts and video as `video_url` parts.
+        media: { documents: true, video: true },
+      }).pipe(
         Effect.map((body) => {
           const sourceAssistants = request.messages.filter((message) => message.role === "assistant")
           let assistantIndex = 0

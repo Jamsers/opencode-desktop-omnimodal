@@ -64,6 +64,15 @@ describe("SessionModelRequest.unsupportedParts", () => {
     expect(unsupportedParts([message], capabilities(["text", "image"]))[0]?.content).toEqual(message.content)
   })
 
+  test("maps office documents to the pdf modality", () => {
+    const docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    const message = Message.user({ type: "media", media: Media.base64("UEsDBA==", docx), filename: "notes.docx" })
+    expect(unsupportedParts([message], capabilities(["text"]))[0]?.content).toEqual([
+      Message.text('ERROR: Cannot read "notes.docx" (this model does not support pdf input). Inform the user.'),
+    ])
+    expect(unsupportedParts([message], capabilities(["text", "pdf"]))[0]?.content).toEqual(message.content)
+  })
+
   test("returns the same messages when nothing is unsupported", () => {
     const messages = [
       Message.user([Message.text("hi"), { type: "media", media: Media.base64("aGVsbG8=", "image/png") }]),

@@ -3,6 +3,7 @@ export * as ReadTool from "./read.js"
 import type { Context } from "@opencode/plugin/effect/plugin"
 import { basename, dirname, join } from "path"
 import { ToolFailure } from "@opencode/ai"
+import { isDocumentMediaType } from "@opencode/ai/utils/media-type"
 import { Effect, Schema } from "effect"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Location } from "../../location.js"
@@ -10,6 +11,7 @@ import { FileAccess } from "../../file-access.js"
 import { SessionInstructions } from "../../session/instructions.js"
 import { AbsolutePath } from "../../schema.js"
 import { ReadToolFileSystem } from "../read-filesystem.js"
+import { Mime } from "../../mime.js"
 import { Environment } from "../../environment/index.js"
 
 export const name = "read"
@@ -41,7 +43,7 @@ export const Plugin = {
           name,
           options: { codemode: false },
           description:
-            "Read the contents of a file or directory. Supports text files, images, and PDFs. Images and PDFs are presented directly to the model. Each text line is prefixed by its 1-based line number as <line>: <content>. The prefix is for reference and is not part of the file content. Directory entries are returned one per line. Use offset and limit to read large files or directories in sections. Prefer one larger read over many small slices, and use grep to find specific content in large files.",
+            "Read the contents of a file or directory. Supports text files, images, PDFs, documents (DOCX, XLSX, PPTX), audio, and video. Media files are presented directly to the model. Each text line is prefixed by its 1-based line number as <line>: <content>. The prefix is for reference and is not part of the file content. Directory entries are returned one per line. Use offset and limit to read large files or directories in sections. Prefer one larger read over many small slices, and use grep to find specific content in large files.",
           input: Input,
           output: Output,
           execute: (input, context) => {
@@ -108,7 +110,7 @@ export const Plugin = {
               if (
                 result.content.type === "file" &&
                 result.content.encoding === "base64" &&
-                !ReadToolFileSystem.MEDIA_MIMES.has(result.content.mime)
+                !Mime.isMedia(result.content.mime)
               )
                 return yield* Effect.fail(new ReadToolFileSystem.BinaryFileError({ resource: result.target.resource }))
               return { output: result.content, path: result.path }
@@ -175,7 +177,7 @@ export const Plugin = {
 export const toModelContent = (path: string, offset: number | undefined, output: typeof Output.Type) => {
   if (output.type === "file" && output.encoding === "base64")
     return [
-      { type: "text", text: output.mime === "application/pdf" ? "PDF read successfully" : "Image read successfully" },
+      { type: "text", text: `${readLabel(output.mime)} read successfully` },
       {
         type: "file",
         uri: `data:${output.mime};base64,${output.content}`,
@@ -208,4 +210,11 @@ export const toModelContent = (path: string, offset: number | undefined, output:
   if (output.type === "text-page" && output.truncated && output.next !== undefined)
     content.push(`[Output truncated. Continue reading with offset: ${output.next}]`)
   return content.join("\n")
+}
+
+const readLabel = (mime: string) => {
+  if (isDocumentMediaType(mime)) return mime === "application/pdf" ? "PDF" : "Document"
+  if (mime.startsWith("audio/")) return "Audio"
+  if (mime.startsWith("video/")) return "Video"
+  return "Image"
 }

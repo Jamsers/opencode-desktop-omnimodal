@@ -1,19 +1,27 @@
 export * as Mime from "./mime.js"
 
+import { detectMediaType, isDocumentMediaType } from "@opencode/ai/utils/media-type"
+import { lookup } from "mime-types"
+
+const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
+
 export function detect(bytes: Uint8Array) {
-  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "image/png"
-  if (startsWith(bytes, [0xff, 0xd8, 0xff])) return "image/jpeg"
-  if (startsWith(bytes, [0x47, 0x49, 0x46, 0x38])) return "image/gif"
+  const detected = detectMediaType(bytes)
+  if (detected) return detected
   if (startsWith(bytes, [0x42, 0x4d])) return "image/bmp"
-  if (startsWith(bytes, [0x25, 0x50, 0x44, 0x46, 0x2d])) return "application/pdf"
-  if (startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) && startsWith(bytes.subarray(8), [0x57, 0x45, 0x42, 0x50]))
-    return "image/webp"
-  if (
-    startsWith(bytes.subarray(4), [0x66, 0x74, 0x79, 0x70]) &&
-    (startsWith(bytes.subarray(8), [0x61, 0x76, 0x69, 0x66]) || startsWith(bytes.subarray(8), [0x61, 0x76, 0x69, 0x73]))
-  )
-    return "image/avif"
   return isText(bytes) ? "text/plain" : "application/octet-stream"
+}
+
+/** Sniffed media type, falling back to the file name's extension when the bytes are opaque. */
+export function detectNamed(bytes: Uint8Array, name: string | undefined) {
+  const detected = detect(bytes)
+  if (detected !== "application/octet-stream" || name === undefined) return detected
+  return lookup(name) || detected
+}
+
+/** Media the server forwards to the model as message content. */
+export function isMedia(mime: string) {
+  return imageMimes.has(mime) || mime.startsWith("audio/") || mime.startsWith("video/") || isDocumentMediaType(mime)
 }
 
 function startsWith(bytes: Uint8Array, prefix: number[]) {

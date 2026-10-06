@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { CacheHint, LLM, Message } from "../../src/index.js"
+import { CacheHint, LLM, Media, Message } from "../../src/index.js"
 import { LLMClient } from "../../src/route.js"
 import { compileRequest } from "../../src/route/client.js"
 import * as OpenRouter from "../../src/providers/openrouter.js"
@@ -29,6 +29,47 @@ describe("OpenRouter", () => {
         stream: true,
         usage: { include: true },
       })
+    }),
+  )
+
+  it.effect("lowers video and office documents as OpenRouter media parts", () =>
+    Effect.gen(function* () {
+      const model = OpenRouter.configure({ apiKey: "test-key" }).model("google/gemini-2.5-flash")
+      const prepared = yield* compileRequest(
+        LLM.request({
+          model,
+          messages: [
+            Message.user([
+              { type: "text", text: "Summarize these." },
+              { type: "media", media: Media.base64("AAAA", "video/mp4"), filename: "clip.mp4" },
+              {
+                type: "media",
+                media: Media.base64(
+                  "UEsDBA==",
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ),
+                filename: "notes.docx",
+              },
+            ]),
+          ],
+        }),
+      )
+      expect(prepared.body.messages).toMatchObject([
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Summarize these." },
+            { type: "video_url", video_url: { url: "data:video/mp4;base64,AAAA" } },
+            {
+              type: "file",
+              file: {
+                filename: "notes.docx",
+                file_data: "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBA==",
+              },
+            },
+          ],
+        },
+      ])
     }),
   )
 

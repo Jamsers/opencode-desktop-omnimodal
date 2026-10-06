@@ -202,6 +202,30 @@ Recent work
     ])
   })
 
+  test("forwards audio, video, and document attachments as media", () => {
+    const docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    const attachment = (name: string, mime: string) =>
+      FileAttachment.make({ data: Base64.make("aGVsbG8="), mime, source: { type: "inline" }, name })
+    const [message] = toLLMMessages(
+      [
+        SessionMessage.User.make({
+          id: id("user"),
+          type: "user",
+          text: "Inspect these",
+          files: [attachment("clip.mp3", "audio/mpeg"), attachment("clip.mp4", "video/mp4"), attachment("notes.docx", docx)],
+          time: { created },
+        }),
+      ],
+      model,
+    )
+    expect(message?.content).toEqual([
+      { type: "text", text: "Inspect these" },
+      { type: "media", media: Media.base64("aGVsbG8=", "audio/mpeg"), filename: "clip.mp3" },
+      { type: "media", media: Media.base64("aGVsbG8=", "video/mp4"), filename: "clip.mp4" },
+      { type: "media", media: Media.base64("aGVsbG8=", docx), filename: "notes.docx" },
+    ])
+  })
+
   test("leaves out the recent context of a checkpoint that kept none", () => {
     const [checkpoint] = toLLMMessages(
       [

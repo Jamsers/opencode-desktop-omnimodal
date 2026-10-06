@@ -6,13 +6,15 @@ import { createAnimatedPresence } from "@/runtime/animated-presence"
 
 export function ComposerDropzone(props: {
   active: boolean
-  input?: { image?: boolean; pdf?: boolean }
+  input?: { image?: boolean; pdf?: boolean; audio?: boolean; video?: boolean }
   identity?: () => unknown
 }) {
   const language = useLanguage()
   const [elements, setElements] = createStore<{ dropzone?: HTMLDivElement }>({})
 
   const label = createMemo(() => {
+    if (props.input?.audio || props.input?.video) return language.t("ui.promptInput.dropFiles.media")
+
     if (!props.input?.image && !props.input?.pdf) return language.t("ui.promptInput.dropFiles")
 
     if (!props.input.pdf) return language.t("ui.promptInput.dropFiles.image")
