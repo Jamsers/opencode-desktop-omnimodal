@@ -9,6 +9,7 @@ import {
   LLMClient,
   LLMEvent,
   LLMRequest,
+  Media,
   Message,
   type ToolEntry,
   UnknownProviderError,
@@ -100,6 +101,12 @@ const UNKNOWN_WINDOW = 200_000
 const TOOL_OUTPUT_MAX_CHARS = 1_250
 const IMAGE_TOKEN_ESTIMATE = 1_500
 const PDF_TOKEN_ESTIMATE = 2_000
+// Audio, video, and office documents have no flat size: their cost scales with the duration or extracted text that
+// payload bytes stand in for. Estimates round up on purpose — one that runs low hides the overflow from `due` and
+// from the overflow rebuild's shrink budget, and oversized media requests then fail without compaction.
+const AUDIO_BYTES_PER_TOKEN = 500
+const VIDEO_BYTES_PER_TOKEN = 5_000
+const DOCUMENT_BYTES_PER_TOKEN = 10
 
 const SUMMARY_TEMPLATE = `You MUST use this format for your response (you may omit sections that aren't applicable). Do not include the <template> tags in your response.
 <template>
@@ -943,21 +950,38 @@ const estimatePart = (part: ContentPart): number => {
   if (part.type === "compaction") return Token.estimate(part.text ?? "")
   if (part.type === "effort") return 0
   if (part.type === "text" || part.type === "reasoning") return Token.estimate(part.text)
-  if (part.type === "media") return estimateMedia(part.media.mediaType)
+  if (part.type === "media") return estimateMedia(part.media.mediaType, assetBytes(part.media))
   if (part.type === "tool-call") return Token.estimate(part.name + (JSON.stringify(part.input) ?? ""))
 
   if (part.result.type === "content")
     return part.result.value.reduce(
-      (sum, content) => sum + (content.type === "text" ? Token.estimate(content.text) : estimateMedia(content.mime)),
+      (sum, content) =>
+        sum + (content.type === "text" ? Token.estimate(content.text) : estimateMedia(content.mime, fileBytes(content.uri))),
       0,
     )
   const value = part.result.value
   return Token.estimate(typeof value === "string" ? value : (JSON.stringify(value) ?? ""))
 }
 
-const estimateMedia = (mime: string) => {
+const estimateMedia = (mime: string, bytes: number) => {
   const type = mime.toLowerCase()
   if (type.startsWith("image/")) return IMAGE_TOKEN_ESTIMATE
   if (type === "application/pdf") return PDF_TOKEN_ESTIMATE
+  // Unknown-size media (a URL the provider fetches) keeps the flat stand-in.
+  if (bytes <= 0) return PDF_TOKEN_ESTIMATE
+  if (type.startsWith("audio/")) return Math.ceil(bytes / AUDIO_BYTES_PER_TOKEN)
+  if (type.startsWith("video/")) return Math.ceil(bytes / VIDEO_BYTES_PER_TOKEN)
+  return Math.ceil(bytes / DOCUMENT_BYTES_PER_TOKEN)
+}
+
+const assetBytes = (media: Media.Asset) => {
+  if (media.source.type === "base64") return Math.ceil((media.source.data.length * 3) / 4)
+  if (media.source.type === "bytes") return media.source.data.byteLength
   return 0
+}
+
+const fileBytes = (uri: string) => {
+  if (uri.startsWith("http:") || uri.startsWith("https:") || uri.startsWith("file:")) return 0
+  const payload = uri.startsWith("data:") ? uri.slice(uri.indexOf(",") + 1) : uri
+  return Math.ceil((payload.length * 3) / 4)
 }

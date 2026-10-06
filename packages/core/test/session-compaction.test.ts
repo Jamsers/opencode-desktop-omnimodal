@@ -239,6 +239,48 @@ it.effect("auto compaction estimates current content against the buffered prompt
     expect(SessionCompaction.estimateContext(grown)).toBe(90_000)
     expect(yield* due(grown)).toBe(true)
 
+    // Media estimates scale with payload bytes; zero estimates hid media-heavy requests from compaction.
+    const attachment = (mime: string, size: number, name: string) =>
+      Schema.decodeUnknownSync(SessionMessage.User)({
+        id: SessionMessage.ID.create(),
+        type: "user",
+        text: "",
+        files: [{ data: Buffer.alloc(size, 1).toString("base64"), mime, source: { type: "inline" }, name }],
+        time: { created: 0 },
+      })
+    const multimodal = {
+      ...grown,
+      model: {
+        ...grown.model,
+        capabilities: { tools: true, input: ["text", "image", "audio", "video", "pdf"], output: ["text"] },
+      },
+    }
+    expect(
+      SessionCompaction.estimateContext({
+        ...multimodal,
+        messages: [...grown.messages, attachment("video/mp4", 5_000_000, "clip.mp4")],
+      }),
+    ).toBe(91_001)
+    expect(
+      SessionCompaction.estimateContext({
+        ...multimodal,
+        messages: [...grown.messages, attachment("audio/mpeg", 1_000_000, "tone.mp3")],
+      }),
+    ).toBe(92_001)
+    expect(
+      SessionCompaction.estimateContext({
+        ...multimodal,
+        messages: [
+          ...grown.messages,
+          attachment(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            100_000,
+            "notes.docx",
+          ),
+        ],
+      }),
+    ).toBe(100_001)
+
     const interrupted = { ...assistant, id: SessionMessage.ID.create(), tokens: undefined }
     expect(SessionCompaction.estimateContext({ ...grown, messages: [...grown.messages, interrupted] })).toBe(90_001)
     // Without provider usage, include 20 tokens for the system prompt, instructions, and tool definition.
