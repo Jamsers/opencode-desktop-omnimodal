@@ -226,7 +226,7 @@ export interface IpcSpec {
  * ```ts
  * export const Pairing = Ipc.define({
  *   id: "pairing",
- *   methods: { info: { output: PairingInfo }, setScreenActive: { input: Schema.Boolean } },
+ *   methods: { screenActive: { output: Schema.Boolean }, setScreenActive: { input: Schema.Boolean } },
  * })
  * ```
  */
@@ -281,7 +281,7 @@ type TypeOf<C> = C extends Codec ? C["Type"] : void
  *
  * @example
  * ```ts
- * const info = await pairing.info({ signal: ctx.signal })
+ * const active = await pairing.screenActive({ signal: ctx.signal })
  * ```
  */
 export type IpcClient<S extends IpcSpec> = {
@@ -957,7 +957,7 @@ type SpecOf<R> = R extends Ipc<infer S> ? S : never
  *
  * @example
  * ```ts
- * export const Pairing = Ipc.define({ id: "pairing", methods: { code: { output: Schema.String } } })
+ * export const Pairing = Ipc.define({ id: "pairing", methods: { screenActive: { output: Schema.Boolean } } })
  * const Pane = Ipc.ref<typeof BrowserPane>("browser.pane")
  * ```
  */
