@@ -10,6 +10,7 @@ This repository is `opencode-desktop-omnimodal`, a personal fork of OpenCode (up
 
 - The fork is rebased onto official release tags, not upstream development branches. The weekly sync fetches `upstream` tags and merges the newest `v2.x.y` release tag into `desktop-omnimodal`.
 - Do not merge upstream `dev` or other development branches in place of a release tag.
+- Upstream's community-governance workflows are disabled in the fork's GitHub Actions settings (`close-prs`, `close-issues`, `compliance-close`, `docs-update`, `stats`, `notify-discord` — a GitHub-side toggle, no repo diff). They are upstream automation targeting `anomalyco/opencode` and their scheduled failures email the owner. After an upstream merge, check for newly added scheduled workflows and disable any without fork purpose.
 
 ## Fork Build
 
