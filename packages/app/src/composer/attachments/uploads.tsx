@@ -33,10 +33,12 @@ export const uploads = {
     ])
 
     try {
-      return await work(
+      const value = await work(
         (loaded) => setState("items", (item) => item.id === input.id, "loaded", loaded),
         controller.signal,
       )
+      if (controller.signal.aborted) return undefined
+      return value
     } catch (error) {
       if (controller.signal.aborted) return undefined
       throw error

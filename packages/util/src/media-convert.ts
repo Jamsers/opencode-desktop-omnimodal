@@ -216,16 +216,17 @@ function command(name: string, args: string[], signal: AbortSignal) {
 
     const abort = () => {
       child.kill()
-      finish(() => reject(new DOMException("Aborted", "AbortError")))
     }
 
     child.stdout.on("data", (chunk) => (stdout += String(chunk)))
     child.stderr.on("data", (chunk) => (stderr = (stderr + String(chunk)).slice(-4000)))
     child.once("error", (error) => finish(() => reject(error)))
     child.once("exit", (code) =>
-      code === 0
-        ? finish(() => resolve(stdout))
-        : finish(() => reject(new Error(`${name} exited with ${code}: ${stderr.trim()}`))),
+      signal.aborted
+        ? finish(() => reject(new DOMException("Aborted", "AbortError")))
+        : code === 0
+          ? finish(() => resolve(stdout))
+          : finish(() => reject(new Error(`${name} exited with ${code}: ${stderr.trim()}`))),
     )
 
     if (signal.aborted) abort()

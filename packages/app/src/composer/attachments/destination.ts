@@ -37,6 +37,7 @@ export function useAttachmentDestination(controls: Accessor<ComposerControls>) {
           const id = uuid()
           const sourcePath = platform.getPathForFile?.(file) || undefined
           const bytes = sourcePath ? undefined : await file.arrayBuffer()
+          if (signal.aborted) return null
           const cancel = () => void platform.cancelMedia?.(id)
 
           signal.addEventListener("abort", cancel, { once: true })
