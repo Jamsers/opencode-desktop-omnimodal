@@ -22,6 +22,16 @@ This repository is `opencode-desktop-omnimodal`, a personal fork of OpenCode (up
 - The fork's NSIS installer is assisted (`oneClick: false`) on purpose: one-click per-user installers name their directory after the npm package (`@opencode-desktop`), colliding with official installs. Do not switch it back to one-click.
 - Fork and official installs share one background service and one data directory by design; whichever app launches swaps the service to its own version. Do not add fork changes to make them co-run.
 
+## Fork Delta Map
+
+Weekly merges overlap these fork-owned paths; prefer upstream's text and re-apply the fork hunk.
+
+- **Ingestion + conversion UI**: `packages/app/src/composer/**`, `packages/app/src/runtime/{i18n/en.ts,platform/platform.tsx}`, `packages/ui/src/i18n/en.ts`.
+- **Conversion engine + Read hook**: `packages/util/src/media-{spec,cache,convert}.ts`, `packages/core/src/media-convert.ts`, `packages/core/src/tool/read-filesystem.ts`, `packages/core/src/{instance.ts,plugin/internal.ts}`, `packages/desktop/src/main/files/**`, `packages/desktop/src/{shared/ipc-rpc/files.ts,shared/ipc-contract.ts,renderer/api.ts,renderer/api-types.ts,renderer/platform/files.ts}`.
+- **Model forwarding**: `packages/ai/src/{media.ts,protocols/openai-chat.ts,providers/openrouter.ts}`, `packages/core/src/session/{model-request,compaction}.ts`, `packages/core/src/session/runner/to-llm-message.ts`.
+- **Identity/release**: `packages/desktop/{electron-builder.config.ts,scripts/*}`, `packages/desktop/src/main/{constants.ts,lifecycle/configure.ts}`, `packages/gui-extensions/src/sdk/core.ts`, `packages/desktop/icons/omnimodal`.
+- **Shared state**: `<data>/media-convert.json` (global conversion toggle, default on) and `<data>/media-cache/` (content-keyed conversions; the 20 MiB ingestion cap applies to the converted output). Both are shared by the desktop and the CLI service.
+
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk` composes Client, Core, and Server.
 - This repository does not use Changesets. Do not add `.changeset` files; follow the existing release workflow instead.

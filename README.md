@@ -48,8 +48,9 @@
 This repository is **opencode-desktop-omnimodal**, a personal fork of [OpenCode](https://github.com/anomalyco/opencode) that adds omnimodal file ingestion to the desktop app: audio, video, and document files (the `file` input type OpenRouter defines) attachable by drag-and-drop or `@` file mentions, and read by models natively through OpenRouter the same way images are today. Aside from this fork's changes, the rest of this README describes stock OpenCode.
 
 - **Scope** — OpenCode Desktop with OpenRouter only.
-- **Upstream** — Tracks official OpenCode v2 releases (currently `v2.0.24`), re-synced weekly.
+- **Upstream** — Tracks official OpenCode v2 releases (currently `v2.1.2`), re-synced weekly.
 - **Identity** — Versioned independently (starting at `1.0.0`) and installed as **OpenCode Omnimodal** (`ai.opencode.desktop.omnimodal`), so it co-installs beside official OpenCode. Its installers update from this repository's GitHub releases and never follow official OpenCode update channels.
+- **Media conversion** — A global composer toggle (default on) transcodes native media for model ingestion before it is attached or read: images to short-side 1080 WebP q80, video to short-side 540 at 4 fps H.264 CRF 32 with Opus 16k audio, and audio to mono Opus 16k Ogg. Metadata is preserved; only audio cover art is dropped. The 20 MiB ingestion cap is applied to the converted output, and a conversion can be cancelled from the composer toast.
 - **Not affiliated** — This fork is not built by the OpenCode team and is not affiliated with them in any way.
 
 ### Building from source

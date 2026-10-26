@@ -48,6 +48,7 @@ import { InstructionDiscovery } from "./instruction-discovery.js"
 import { InstructionBuiltIns } from "./instructions/builtins.js"
 import { InstructionEntry } from "./session/instruction-entry.js"
 import { SessionInstructions } from "./session/instructions.js"
+import { MediaConversion } from "./media-convert.js"
 import { McpTool } from "./tool/mcp.js"
 import { ReadToolFileSystem } from "./tool/read-filesystem.js"
 import { Tool } from "./tool.js"
@@ -93,6 +94,7 @@ const nodes = [
   Tool.node,
   ToolOutput.node,
   Image.node,
+  MediaConversion.node,
   SkillInstructions.node,
   ReferenceInstructions.node,
   InstructionEntry.node,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { frameRate, imageCompliant, renameForKind, videoCompliant } from "../src/media-spec"
+import { frameRate, imageCompliant, renameForKind, videoCompliant } from "../src/media-spec.js"
 
 describe("media spec", () => {
   test("compliance is decided by the short side and frame rate", () => {

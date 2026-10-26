@@ -67,6 +67,7 @@ import { ShellSelect } from "../shell/select.js"
 import { Snapshot } from "../snapshot.js"
 import { Skill } from "../skill.js"
 import { SkillDiscovery } from "../skill/discovery.js"
+import { MediaConversion } from "../media-convert.js"
 import { Watcher } from "../filesystem/watcher.js"
 import { PatchTool } from "../tool/plugin/patch.js"
 import { EditTool } from "../tool/plugin/edit.js"
@@ -191,6 +192,7 @@ export const requirements = LayerNode.group([
   Npm.node,
   Permission.node,
   Form.node,
+  MediaConversion.node,
   ReadToolFileSystem.node,
   Reference.node,
   WebSearch.node,

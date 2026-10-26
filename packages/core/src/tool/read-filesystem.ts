@@ -3,11 +3,12 @@ export * as ReadToolFileSystem from "./read-filesystem.js"
 import path from "path"
 import { pathToFileURL } from "url"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Option, Schema } from "effect"
 import { lookup } from "mime-types"
 import { Environment } from "../environment/index.js"
 import type { Files } from "../environment/index.js"
 import { FileSystem } from "../filesystem.js"
+import { MediaConversion } from "../media-convert.js"
 import { Mime } from "../mime.js"
 import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath } from "../schema.js"
 
@@ -117,6 +118,7 @@ export const read = Effect.fn("ReadTool.read")(function* (
   input: AbsolutePath,
   resource: string,
   page: PageInput = {},
+  conversion?: MediaConversion.Interface,
 ) {
   const first = yield* files.read(input, { offset: 0, length: FIRST_CHUNK }).pipe(
     Effect.catchTag("Environment.WrongKind", (error) => {
@@ -134,13 +136,31 @@ export const read = Effect.fn("ReadTool.read")(function* (
 
   const media = Mime.detectNamed(first.bytes, input)
   if (Mime.isMedia(media)) {
+    const name = path.basename(input)
+    // The switch is global, so agent reads honor the same toggle as attachments.
+    const converted = conversion ? yield* conversion.convert({ path: input, name, mime: media }) : null
+
+    if (converted?.converted) {
+      if (converted.size > MAX_MEDIA_INGEST_BYTES || !converted.bytes)
+        return yield* new MediaIngestLimitError({ resource, maximumBytes: MAX_MEDIA_INGEST_BYTES })
+
+      return {
+        type: "file" as const,
+        uri: pathToFileURL(input).href,
+        name,
+        content: Buffer.from(converted.bytes).toString("base64"),
+        encoding: "base64" as const,
+        mime: converted.mime,
+      }
+    }
+
     if (first.info.size > MAX_MEDIA_INGEST_BYTES)
       return yield* new MediaIngestLimitError({ resource, maximumBytes: MAX_MEDIA_INGEST_BYTES })
     const whole = yield* readFile(files, input, resource)
     return {
       type: "file" as const,
       uri: pathToFileURL(input).href,
-      name: path.basename(input),
+      name,
       content: Buffer.from(whole.bytes).toString("base64"),
       encoding: "base64" as const,
       mime: media,
@@ -391,9 +411,10 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const environment = yield* Environment.Service
+    const conversion = Option.getOrUndefined(yield* Effect.serviceOption(MediaConversion.Service))
     return Service.of({
       list: environment.files.list,
-      read: (path, resource, page) => read(environment.files, path, resource, page),
+      read: (path, resource, page) => read(environment.files, path, resource, page, conversion),
     })
   }),
 )
