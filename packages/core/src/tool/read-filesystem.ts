@@ -3,7 +3,7 @@ export * as ReadToolFileSystem from "./read-filesystem.js"
 import path from "path"
 import { pathToFileURL } from "url"
 import { makeLocationNode } from "@opencode/util/effect/app-node"
-import { Context, Effect, Layer, Option, Schema } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
 import { lookup } from "mime-types"
 import { Environment } from "../environment/index.js"
 import type { Files } from "../environment/index.js"
@@ -411,7 +411,7 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const environment = yield* Environment.Service
-    const conversion = Option.getOrUndefined(yield* Effect.serviceOption(MediaConversion.Service))
+    const conversion = yield* MediaConversion.Service
     return Service.of({
       list: environment.files.list,
       read: (path, resource, page) => read(environment.files, path, resource, page, conversion),
@@ -419,4 +419,4 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = makeLocationNode({ service: Service, layer, deps: [Environment.node] })
+export const node = makeLocationNode({ service: Service, layer, deps: [Environment.node, MediaConversion.node] })
