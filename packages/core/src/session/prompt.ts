@@ -7,10 +7,12 @@ import type { Session } from "@opencode/schema/session"
 import type { SessionMessage } from "@opencode/schema/session-message"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Effect } from "effect"
+import { lookup } from "mime-types"
 import path from "path"
 import { fileURLToPath } from "url"
 import { Image } from "../image.js"
 import { Instance } from "../instance/service.js"
+import { MediaConversion } from "../media-convert.js"
 import { Mime } from "../mime.js"
 import { Plugin } from "../plugin/service.js"
 import { PluginHooks } from "../plugin/hooks.js"
@@ -92,6 +94,7 @@ const materializeAttachment = Effect.fn("SessionPrompt.materializeAttachment")(f
   input: PromptInput.FileAttachment,
 ) {
   const label = attachmentLabel(input)
+  const conversion = yield* MediaConversion.Service
   const resolved = input.uri.startsWith("data:")
     ? {
         bytes: yield* decodeDataURL(input.uri, label),
@@ -101,7 +104,7 @@ const materializeAttachment = Effect.fn("SessionPrompt.materializeAttachment")(f
         name: undefined,
         mime: undefined,
       }
-    : yield* readFileAttachment(input.uri)
+    : yield* readFileAttachment(input.uri, conversion)
   if (resolved.bytes.byteLength > MAX_ATTACHMENT_BYTES)
     return yield* new AttachmentError({
       uri: label,
@@ -147,7 +150,10 @@ const normalizeImageAttachment = Effect.fn("SessionPrompt.normalizeImageAttachme
   return { data: Base64.make(normalized.content), mime: normalized.mime }
 })
 
-const readFileAttachment = Effect.fn("SessionPrompt.readFileAttachment")(function* (uri: string) {
+const readFileAttachment = Effect.fn("SessionPrompt.readFileAttachment")(function* (
+  uri: string,
+  conversion: MediaConversion.Interface,
+) {
   const fs = yield* FSUtil.Service
   const url = yield* Effect.try({
     try: () => new URL(uri),
@@ -188,6 +194,31 @@ const readFileAttachment = Effect.fn("SessionPrompt.readFileAttachment")(functio
     }
   }
   if (info.type !== "File") return yield* new AttachmentError({ uri, message: `Attachment is not a file: ${uri}` })
+  const name = path.basename(target)
+  // Media converts before the size gate because the limit applies to the converted output. Text selections and
+  // unsupported kinds fall through to the raw file.
+  if (start === undefined && end === undefined) {
+    const converted = yield* conversion.convert({
+      path: target,
+      name,
+      mime: lookup(name) || "application/octet-stream",
+    })
+    if (converted?.converted) {
+      if (converted.size > MAX_ATTACHMENT_BYTES || !converted.bytes)
+        return yield* new AttachmentError({
+          uri,
+          message: `Attachment exceeds the ${MAX_ATTACHMENT_BYTES} byte limit: ${uri}`,
+        })
+      return {
+        bytes: converted.bytes,
+        source: { type: "uri" as const, uri },
+        start: undefined,
+        end: undefined,
+        name: converted.name,
+        mime: converted.mime,
+      }
+    }
+  }
   if (Number(info.size) > MAX_ATTACHMENT_BYTES)
     return yield* new AttachmentError({
       uri,
@@ -196,7 +227,7 @@ const readFileAttachment = Effect.fn("SessionPrompt.readFileAttachment")(functio
   const bytes = yield* fs
     .readFile(target)
     .pipe(Effect.mapError(() => new AttachmentError({ uri, message: `Unable to read attachment: ${uri}` })))
-  return { bytes, source: { type: "uri" as const, uri }, start, end, name: path.basename(target), mime: undefined }
+  return { bytes, source: { type: "uri" as const, uri }, start, end, name, mime: undefined }
 })
 
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024

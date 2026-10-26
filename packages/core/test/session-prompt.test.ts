@@ -28,6 +28,7 @@ import { SessionStore } from "@opencode/core/session/store"
 import { LocationServiceMap } from "@opencode/core/location-service-map"
 import type { LocationServices } from "@opencode/core/location-services"
 import { Image } from "@opencode/core/image"
+import { MediaConversion } from "@opencode/core/media-convert"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHooks } from "@opencode/core/plugin/hooks"
 import { Snapshot } from "@opencode/core/snapshot"
@@ -78,6 +79,21 @@ const locations = makeGlobalNode({
             Layer.mock(Image.Service, {
               normalize: (_resource, content) =>
                 Effect.succeed(content.content.length > 5 * 1024 * 1024 ? { ...content, content: "AA==" } : content),
+            }),
+            Layer.mock(MediaConversion.Service, {
+              convert: (input) =>
+                Effect.succeed(
+                  input.mime.startsWith("video/")
+                    ? {
+                        converted: true,
+                        path: "mock.mp4",
+                        name: "mock.mp4",
+                        mime: "video/mp4",
+                        size: 4,
+                        bytes: new Uint8Array([1, 2, 3, 4]),
+                      }
+                    : null,
+                ),
             }),
             Layer.mock(Snapshot.Service, {
               capture: () => Effect.undefined,
@@ -429,6 +445,32 @@ describe("Session.prompt", () => {
       ])
       const stored = yield* admitted(message.id)
       expect(stored?.type === "user" ? stored.payload.files : undefined).toEqual(message.payload.files)
+    }),
+  )
+
+  it.effect("converts media attachments before the size limit", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* Session.Service
+      const directory = yield* tmpdirScoped("opencode-session-prompt-")
+      const source = path.join(directory.path, "large.mp4")
+      yield* Effect.promise(() => Bun.write(source, Buffer.alloc(20 * 1024 * 1024 + 1)))
+
+      const message = yield* session.prompt({
+        sessionID,
+        text: "@large.mp4",
+        files: [{ uri: pathToFileURL(source).href, name: "large.mp4" }],
+        resume: false,
+      })
+
+      expect(message.payload.files).toEqual([
+        {
+          data: Buffer.from([1, 2, 3, 4]).toString("base64"),
+          mime: "video/mp4",
+          source: { type: "uri", uri: pathToFileURL(source).href },
+          name: "large.mp4",
+        },
+      ])
     }),
   )
 

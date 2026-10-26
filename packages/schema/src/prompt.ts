@@ -18,10 +18,48 @@ export const FileSource = Schema.Union([
   .annotate({ identifier: "Prompt.FileSource" })
 export type FileSource = typeof FileSource.Type
 
+// The equivalent regex fails on large payloads in some engines (JSC rejects canonical base64 above
+// roughly 9 MB), so validate in a single linear pass instead. The pattern stays as an annotation so
+// the generated OpenAPI document still documents the same constraint.
+const base64Pattern = {
+  source: "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+  flags: "u",
+}
+
 export const Base64 = Schema.String.check(
-  Schema.isPattern(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u),
+  Schema.makeFilter(isBase64, {
+    expected: `a string matching the RegExp ${base64Pattern.source}`,
+    representation: { id: "effect/schema/isPattern", payload: base64Pattern },
+    toJsonSchema: () => ({ pattern: base64Pattern.source }),
+    arbitraryConstraint: { patterns: [base64Pattern] },
+  }),
 ).annotate({ identifier: "Prompt.Base64" })
 export type Base64 = typeof Base64.Type
+
+function isBase64(value: string) {
+  if (value.length === 0) return true
+  if (value.length % 4 !== 0) return false
+
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0
+  const body = value.length - padding
+
+  // Padding only terminates the final quad: one `=` follows three characters, two follow two.
+  if (padding === 1 && body % 4 !== 3) return false
+  if (padding === 2 && body % 4 !== 2) return false
+
+  for (let index = 0; index < body; index++) {
+    const code = value.charCodeAt(index)
+    const valid =
+      (code >= 0x41 && code <= 0x5a) ||
+      (code >= 0x61 && code <= 0x7a) ||
+      (code >= 0x30 && code <= 0x39) ||
+      code === 0x2b ||
+      code === 0x2f
+    if (!valid) return false
+  }
+
+  return true
+}
 
 export interface FileAttachment extends Schema.Schema.Type<typeof FileAttachment> {}
 export const FileAttachment = Schema.Struct({
