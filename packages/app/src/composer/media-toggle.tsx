@@ -27,8 +27,7 @@ export function MediaConversionToggle() {
           data-action="composer-media-conversion"
           variant="ghost-muted"
           size="normal"
-          state={mediaConversion.enabled() ? "pressed" : "rest"}
-          icon={<Icon name="photo" />}
+          icon={<Icon name="photo" class={mediaConversion.enabled() ? undefined : "opacity-40"} />}
           aria-label={label()}
           aria-pressed={mediaConversion.enabled()}
           onClick={() => void mediaConversion.set(platform, !mediaConversion.enabled())}
