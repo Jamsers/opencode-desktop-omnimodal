@@ -24,6 +24,16 @@ export function isMedia(mime: string) {
   return imageMimes.has(mime) || mime.startsWith("audio/") || mime.startsWith("video/") || isDocumentMediaType(mime)
 }
 
+export const isTextual = (mime: string) =>
+  !mime ||
+  mime.startsWith("text/") ||
+  mime === "application/json" ||
+  mime.endsWith("+json") ||
+  mime === "application/xml" ||
+  mime.endsWith("+xml") ||
+  mime === "application/javascript" ||
+  mime === "application/x-javascript"
+
 function startsWith(bytes: Uint8Array, prefix: number[]) {
   return prefix.every((value, index) => bytes[index] === value)
 }

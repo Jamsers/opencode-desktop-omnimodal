@@ -11,7 +11,6 @@ import { FileAccess } from "../../file-access.js"
 import { SessionInstructions } from "../../session/instructions.js"
 import { AbsolutePath } from "../../schema.js"
 import { ReadToolFileSystem } from "../read-filesystem.js"
-import { Mime } from "../../mime.js"
 import { Environment } from "../../environment/index.js"
 
 export const name = "read"
@@ -107,12 +106,6 @@ export const Plugin = {
                 Effect.catch(() => Effect.void),
                 Effect.catchDefect(() => Effect.void),
               )
-              if (
-                result.content.type === "file" &&
-                result.content.encoding === "base64" &&
-                !Mime.isMedia(result.content.mime)
-              )
-                return yield* Effect.fail(new ReadToolFileSystem.BinaryFileError({ resource: result.target.resource }))
               return { output: result.content, path: result.path }
             }).pipe(
               Effect.map((result) => ({
