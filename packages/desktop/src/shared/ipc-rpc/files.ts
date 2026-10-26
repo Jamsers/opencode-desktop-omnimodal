@@ -81,6 +81,38 @@ export const FilesWriteClipboardText = Rpc.make("FilesWriteClipboardText", {
   payload: { text: Schema.String },
 })
 
+const MediaConversion = Schema.Struct({
+  converted: Schema.Boolean,
+  path: Schema.String,
+  name: Schema.String,
+  mime: Schema.String,
+  size: Schema.Number,
+  bytes: Schema.optional(Transferable.Uint8Array),
+})
+
+export const FilesConvertMedia = Rpc.make("FilesConvertMedia", {
+  payload: {
+    id: Schema.String,
+    path: Schema.optional(Schema.String),
+    bytes: Schema.optional(Transferable.Uint8Array),
+    name: Schema.String,
+    mime: Schema.String,
+  },
+  success: Schema.NullOr(MediaConversion),
+})
+
+export const FilesCancelMedia = Rpc.make("FilesCancelMedia", {
+  payload: { id: Schema.String },
+})
+
+export const FilesMediaPreference = Rpc.make("FilesMediaPreference", {
+  success: Schema.Struct({ convert: Schema.Boolean }),
+})
+
+export const FilesSetMediaPreference = Rpc.make("FilesSetMediaPreference", {
+  payload: { convert: Schema.Boolean },
+})
+
 export const FileRpcs = RpcGroup.make(
   FilesOpenDirectoryPicker,
   FilesOpenFilePicker,
@@ -94,4 +126,8 @@ export const FileRpcs = RpcGroup.make(
   FilesRevealPath,
   FilesReadClipboardImage,
   FilesWriteClipboardText,
+  FilesConvertMedia,
+  FilesCancelMedia,
+  FilesMediaPreference,
+  FilesSetMediaPreference,
 )

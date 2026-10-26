@@ -315,6 +315,8 @@ export const dict = {
   "prompt.toast.attachmentDuplicate.title": "This file has already been uploaded",
   "prompt.toast.uploading.percent": "{{percent}}%",
   "prompt.toast.uploading.cancelFile": "Cancel upload of {{filename}}",
+  "prompt.toast.converting.label": "Converting…",
+  "prompt.toast.converting.cancelFile": "Cancel conversion of {{filename}}",
   "prompt.toast.uploadFailed.title": "Upload failed",
   "prompt.toast.modelAgentRequired.title": "Select an agent and model",
   "prompt.toast.modelAgentRequired.description": "Choose an agent and model before sending a prompt.",

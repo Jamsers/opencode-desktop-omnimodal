@@ -163,6 +163,8 @@ const source = {
   "ui.promptInput.placeholder.followUp": "Add follow-up, {{slash}} for commands, {{at}} for context…",
   "ui.promptInput.add": "Add images and files",
   "ui.promptInput.attachments": "Images and files",
+  "ui.promptInput.mediaConversion.enable": "Enable media conversion",
+  "ui.promptInput.mediaConversion.disable": "Disable media conversion",
   "ui.promptInput.context": "Context",
   "ui.promptInput.shell": "Shell command",
   "ui.promptInput.chooseAgent": "Choose agent",

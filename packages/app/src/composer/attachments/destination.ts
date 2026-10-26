@@ -2,6 +2,7 @@ import type { Accessor } from "solid-js"
 import { useServer } from "@/runtime/server/current"
 import { useServerSDK } from "@/runtime/server/client"
 import { authTokenFromCredentials } from "@/runtime/server/api"
+import { usePlatform, type MediaConversionResult } from "@/runtime/platform/platform"
 import { uuid } from "@/runtime/persistence/uuid"
 import { useWorkspaceLocation } from "@/workspaces/location"
 import type { ComposerControls } from "../adapter"
@@ -14,16 +15,39 @@ export type AttachmentDestination = {
   local: boolean
   /** Streams a file into the server's temporary directory and returns its absolute path there. */
   upload: (file: File, report: (loaded: number) => void, signal: AbortSignal) => Promise<string>
+  /** Converts native media for model ingestion, returning null when no conversion applies. */
+  convert?: (file: File, mime: string, signal: AbortSignal) => Promise<MediaConversionResult | null>
 }
 
 export function useAttachmentDestination(controls: Accessor<ComposerControls>) {
   const server = useServer()
   const sdk = useServerSDK()
   const location = useWorkspaceLocation()
+  const platform = usePlatform()
 
   return (): AttachmentDestination => ({
     input: controls().model.selection.current()?.capabilities.input ?? { image: false, pdf: false, audio: false, video: false },
     local: server.isLocal,
+    convert: platform.convertMedia
+      ? async (file, mime, signal) => {
+          // The generated file lands next to the service in the local data directory; a remote
+          // server cannot open it, so conversion stays local-only.
+          if (!server.isLocal) return null
+
+          const id = uuid()
+          const sourcePath = platform.getPathForFile?.(file) || undefined
+          const bytes = sourcePath ? undefined : await file.arrayBuffer()
+          const cancel = () => void platform.cancelMedia?.(id)
+
+          signal.addEventListener("abort", cancel, { once: true })
+
+          try {
+            return await platform.convertMedia!({ id, path: sourcePath, bytes, name: file.name, mime })
+          } finally {
+            signal.removeEventListener("abort", cancel)
+          }
+        }
+      : undefined,
     upload: async (file, report, signal) => {
       const info = await sdk.api.server.info({ signal })
       // One directory per upload keeps the original filename without collisions; the server

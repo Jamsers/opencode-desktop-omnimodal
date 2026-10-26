@@ -1,6 +1,7 @@
-import { createEffect, createRoot, For, on, onCleanup } from "solid-js"
+import { createEffect, createRoot, For, on, onCleanup, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Icon } from "@opencode/ui/icon"
+import { Spinner } from "@opencode/ui/spinner"
 import { Toast, toaster } from "@opencode/ui/toast"
 import { useLanguage } from "@/runtime/i18n/language"
 
@@ -10,6 +11,7 @@ export type Upload = {
   mime: string
   size: number
   loaded: number
+  phase: "uploading" | "converting"
   cancel: () => void
 }
 
@@ -21,11 +23,14 @@ export const uploads = {
   items: () => state.items,
   /** Runs `work` while the upload is listed. Resolves to undefined when the user cancels it. */
   async track<T>(
-    input: Pick<Upload, "id" | "filename" | "mime" | "size">,
+    input: Pick<Upload, "id" | "filename" | "mime" | "size"> & { phase?: Upload["phase"] },
     work: (report: (loaded: number) => void, signal: AbortSignal) => Promise<T>,
   ): Promise<T | undefined> {
     const controller = new AbortController()
-    setState("items", (items) => [...items, { ...input, loaded: 0, cancel: () => controller.abort() }])
+    setState("items", (items) => [
+      ...items,
+      { ...input, phase: input.phase ?? "uploading", loaded: 0, cancel: () => controller.abort() },
+    ])
 
     try {
       return await work(
@@ -84,6 +89,7 @@ export function UploadToastHost() {
 
 function UploadToast(props: { toastId: number; language: ReturnType<typeof useLanguage> }) {
   const percent = (item: Upload) => (item.size === 0 ? 100 : Math.floor((item.loaded / item.size) * 100))
+  const converting = (item: Upload) => item.phase === "converting"
 
   return (
     <Toast toastId={props.toastId}>
@@ -96,24 +102,35 @@ function UploadToast(props: { toastId: number; language: ReturnType<typeof useLa
                   {item.filename}
                 </span>
                 <span data-slot="upload-row-percent">
-                  {props.language.t("prompt.toast.uploading.percent", { percent: percent(item) })}
+                  {converting(item)
+                    ? props.language.t("prompt.toast.converting.label")
+                    : props.language.t("prompt.toast.uploading.percent", { percent: percent(item) })}
                 </span>
               </div>
               <div data-slot="upload-row-track">
-                <div
-                  data-component="upload-progress"
-                  role="progressbar"
-                  aria-label={item.filename}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={percent(item)}
+                <Show
+                  when={!converting(item)}
+                  fallback={<Spinner class="shrink-0" style={{ width: "12px", height: "12px" }} />}
                 >
-                  <div data-slot="upload-progress-bar" style={{ width: `${percent(item)}%` }} />
-                </div>
+                  <div
+                    data-component="upload-progress"
+                    role="progressbar"
+                    aria-label={item.filename}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={percent(item)}
+                  >
+                    <div data-slot="upload-progress-bar" style={{ width: `${percent(item)}%` }} />
+                  </div>
+                </Show>
                 <button
                   type="button"
                   data-slot="upload-row-cancel"
-                  aria-label={props.language.t("prompt.toast.uploading.cancelFile", { filename: item.filename })}
+                  aria-label={
+                    converting(item)
+                      ? props.language.t("prompt.toast.converting.cancelFile", { filename: item.filename })
+                      : props.language.t("prompt.toast.uploading.cancelFile", { filename: item.filename })
+                  }
                   onClick={() => item.cancel()}
                 >
                   <Icon name="outline-xmark" />

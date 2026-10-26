@@ -36,6 +36,11 @@ export const fileHandlers = FileRpcs.toLayer(
       FilesRevealPath: ({ path }) => files.revealPath(path),
       FilesReadClipboardImage: () => files.readClipboardImage(),
       FilesWriteClipboardText: ({ text }) => files.writeClipboardText(text),
+      FilesConvertMedia: ({ id, path, bytes, name, mime }) =>
+        files.convertMedia(id, { path, bytes: bytes ? new Uint8Array(bytes) : undefined, name, mime }),
+      FilesCancelMedia: ({ id }) => files.cancelMedia(id),
+      FilesMediaPreference: () => files.mediaPreference().pipe(Effect.map((convert) => ({ convert }))),
+      FilesSetMediaPreference: ({ convert }) => files.setMediaPreference(convert),
     })
   }),
 )

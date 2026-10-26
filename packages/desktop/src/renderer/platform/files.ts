@@ -19,6 +19,10 @@ type DesktopFileAPI = Pick<
   | "revealPath"
   | "readClipboardImage"
   | "writeClipboardText"
+  | "convertMedia"
+  | "cancelMedia"
+  | "getMediaPreference"
+  | "setMediaPreference"
 >
 
 export function createDesktopFiles(api: DesktopFileAPI, os: DesktopOS) {
@@ -87,6 +91,18 @@ export function createDesktopFiles(api: DesktopFileAPI, os: DesktopOS) {
     },
     writeClipboardText(text: string) {
       return api.writeClipboardText(text)
+    },
+    convertMedia(input: Parameters<typeof api.convertMedia>[0]) {
+      return api.convertMedia(input)
+    },
+    cancelMedia(id: string) {
+      return api.cancelMedia(id)
+    },
+    getMediaPreference() {
+      return api.getMediaPreference()
+    },
+    setMediaPreference(convert: boolean) {
+      return api.setMediaPreference(convert)
     },
   }
 }

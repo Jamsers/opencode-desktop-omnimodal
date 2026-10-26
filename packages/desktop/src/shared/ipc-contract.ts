@@ -41,3 +41,12 @@ export type ClipboardImage = {
   width: number
   height: number
 }
+
+export type MediaConversion = {
+  converted: boolean
+  path: string
+  name: string
+  mime: string
+  size: number
+  bytes?: ArrayBuffer
+}

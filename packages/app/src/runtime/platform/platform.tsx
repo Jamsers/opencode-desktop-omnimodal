@@ -19,6 +19,23 @@ type OpenAttachmentPickerOptions = {
 
 type SaveFilePickerOptions = { title?: string; defaultPath?: string }
 
+export type MediaConversionInput = {
+  id: string
+  path?: string
+  bytes?: ArrayBuffer
+  name: string
+  mime: string
+}
+
+export type MediaConversionResult = {
+  converted: boolean
+  path: string
+  name: string
+  mime: string
+  size: number
+  bytes?: ArrayBuffer
+}
+
 type PlatformName = "web" | "desktop"
 
 type DesktopOS = "macos" | "windows" | "linux"
@@ -103,6 +120,18 @@ type PlatformBase = {
 
   /** Write text to the native clipboard (desktop only) */
   writeClipboardText?(text: string): Promise<void>
+
+  /** Convert a media attachment for model ingestion (desktop only) */
+  convertMedia?(input: MediaConversionInput): Promise<MediaConversionResult | null>
+
+  /** Cancel an in-flight media conversion (desktop only) */
+  cancelMedia?(id: string): Promise<void>
+
+  /** Read the global media conversion preference (desktop only) */
+  getMediaPreference?(): Promise<boolean>
+
+  /** Write the global media conversion preference (desktop only) */
+  setMediaPreference?(enabled: boolean): Promise<void>
 
   /** Export collected diagnostic logs (desktop only) */
   exportDebugLogs?(): Promise<string>

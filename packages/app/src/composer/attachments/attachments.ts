@@ -6,6 +6,7 @@ import { uuid } from "@/runtime/persistence/uuid"
 import type { ComposerPrompt } from "../types"
 import type { ImageAttachmentPart, PathAttachmentPart } from "../state"
 import type { AttachmentDestination } from "./destination"
+import { mediaConversion } from "./media"
 import { uploads } from "./uploads"
 
 type PromptTarget = {
@@ -59,10 +60,50 @@ export function createComposerAttachments(
   // Media the model reads natively travels inline with the prompt, so its bytes live in the draft
   // store. Everything else, including text, reaches the model as a path on the server that its
   // tools open; those bytes never enter the store, and never get base64-encoded into the request.
+  const convert = async (file: File, mime: string, destination: AttachmentDestination) => {
+    const id = uuid()
+    setPending("ids", (ids) => [...ids, id])
+
+    try {
+      return await uploads
+        .track(
+          { id, filename: file.name, mime, size: file.size, phase: "converting" },
+          (_, signal) => destination.convert!(file, mime, signal),
+        )
+        .catch((error: unknown) => {
+          input.onError(error)
+
+          return null
+        })
+    } finally {
+      setPending("ids", (ids) => ids.filter((item) => item !== id))
+    }
+  }
+
   const add = async (file: File, target = capture(), clipboard = false) => {
     if (!target) return false
     const mime = await attachmentMime(file)
     const destination = input.destination()
+
+    if (destination.convert && mediaConversion.enabled() && native(mime, destination.input)) {
+      const converted = await convert(file, mime, destination)
+
+      // Cancelling the conversion cancels the attach.
+      if (converted === undefined) return false
+
+      if (converted?.converted) {
+        if (converted.size <= MAX_INLINE_BYTES && native(converted.mime, destination.input) && converted.bytes)
+          return addInline(
+            new File([converted.bytes], converted.name, { type: converted.mime }),
+            converted.mime,
+            target,
+            clipboard,
+          )
+
+        if (destination.local)
+          return addPath(target, { filename: converted.name, mime: converted.mime, path: converted.path })
+      }
+    }
 
     if (native(mime, destination.input) && file.size <= MAX_INLINE_BYTES) return addInline(file, mime, target, clipboard)
     const sourcePath = input.getPathForFile?.(file) || undefined

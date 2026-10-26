@@ -72,6 +72,28 @@ export const api: ElectronAPI = {
       image ? { ...image, buffer: toArrayBuffer(image.buffer) } : null,
     ),
   writeClipboardText: (text) => invoke("FilesWriteClipboardText", { text }),
+  convertMedia: (input) =>
+    invoke("FilesConvertMedia", {
+      id: input.id,
+      path: input.path,
+      bytes: input.bytes ? new Uint8Array(input.bytes) : undefined,
+      name: input.name,
+      mime: input.mime,
+    }).then((result) =>
+      result
+        ? {
+            converted: result.converted,
+            path: result.path,
+            name: result.name,
+            mime: result.mime,
+            size: result.size,
+            bytes: result.bytes ? toArrayBuffer(result.bytes) : undefined,
+          }
+        : null,
+    ),
+  cancelMedia: (id) => invoke("FilesCancelMedia", { id }),
+  getMediaPreference: () => invoke("FilesMediaPreference").then((value) => value.convert),
+  setMediaPreference: (convert) => invoke("FilesSetMediaPreference", { convert }),
   getWindowFocused: () => invoke("WindowGetFocused"),
   getWindowFullscreen: () => invoke("WindowGetFullscreen"),
   onWindowFullscreenChanged: (cb) => listen("WindowFullscreenChanged", (event) => cb(event.fullscreen)),

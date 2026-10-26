@@ -8,6 +8,12 @@ import { scoped } from "../native/logging"
 import { nativeT } from "../native/translations"
 import { assertAttachmentBudget, createPickedFileAuthorizations, readAttachment } from "./attachment-picker"
 import { resolveExternalURL, resolveLocalFilePath } from "./external-url"
+import {
+  convertMedia as convertMediaFile,
+  readMediaPreference,
+  writeMediaPreference,
+  type MediaConversionInput,
+} from "./media"
 
 export type Interface = ReturnType<typeof make>
 
@@ -27,6 +33,8 @@ function make(fs: FileSystem.FileSystem, path: Path.Path) {
   const pickedFiles = createPickedFileAuthorizations((file, maxBytes) =>
     readAttachment(file, maxBytes).pipe(Effect.provideService(FileSystem.FileSystem, fs)),
   )
+  // Conversions outlive a single RPC call so the renderer can cancel an in-flight encode.
+  const conversions = new Map<string, AbortController>()
 
   return {
     openDirectoryPicker: Effect.fn("DesktopFiles.openDirectoryPicker")(function* (options?: DirectoryPickerOptions) {
@@ -149,6 +157,25 @@ function make(fs: FileSystem.FileSystem, path: Path.Path) {
     }),
     writeClipboardText: Effect.fn("DesktopFiles.writeClipboardText")(function* (text: string) {
       yield* Effect.promise(() => clipboard.writeText(text))
+    }),
+    convertMedia: Effect.fn("DesktopFiles.convertMedia")(function* (id: string, input: MediaConversionInput) {
+      const controller = new AbortController()
+      conversions.set(id, controller)
+
+      const result = yield* Effect.promise(() => convertMediaFile(input, controller.signal).catch(() => null))
+
+      conversions.delete(id)
+
+      return result
+    }),
+    cancelMedia: Effect.fn("DesktopFiles.cancelMedia")(function* (id: string) {
+      conversions.get(id)?.abort()
+    }),
+    mediaPreference: Effect.fn("DesktopFiles.mediaPreference")(function* () {
+      return yield* Effect.promise(readMediaPreference)
+    }),
+    setMediaPreference: Effect.fn("DesktopFiles.setMediaPreference")(function* (convert: boolean) {
+      yield* Effect.promise(() => writeMediaPreference(convert))
     }),
   }
 }

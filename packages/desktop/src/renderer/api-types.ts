@@ -6,6 +6,7 @@ import type {
   DirectoryPickerOptions,
   FatalRendererError,
   FilePickerOptions,
+  MediaConversion,
   PickedFiles,
   SaveFilePickerOptions,
   ServerReadyData,
@@ -49,6 +50,16 @@ export type ElectronAPI = {
   revealPath(path: string): Promise<boolean>
   readClipboardImage(): Promise<ClipboardImage | null>
   writeClipboardText(text: string): Promise<void>
+  convertMedia(input: {
+    id: string
+    path?: string
+    bytes?: ArrayBuffer
+    name: string
+    mime: string
+  }): Promise<MediaConversion | null>
+  cancelMedia(id: string): Promise<void>
+  getMediaPreference(): Promise<boolean>
+  setMediaPreference(convert: boolean): Promise<void>
   getWindowFocused(): Promise<boolean>
   getWindowFullscreen(): Promise<boolean>
   onWindowFullscreenChanged(cb: (fullscreen: boolean) => void): () => void
