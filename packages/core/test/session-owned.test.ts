@@ -17,6 +17,7 @@ import { EventTable } from "../src/event/sql.js"
 import { Image } from "../src/image.js"
 import { Instance } from "../src/instance/service.js"
 import { Location } from "../src/location.js"
+import { MediaConversion } from "../src/media-convert.js"
 import { Plugin } from "../src/plugin.js"
 import { PluginHooks } from "../src/plugin/hooks.js"
 import { ProjectTable } from "../src/project/sql.js"
@@ -125,6 +126,8 @@ const setup = Effect.fnUntraced(function* (options?: {
   const services = Layer.mergeAll(
     Layer.succeed(PluginHooks.Service, hooks),
     Layer.mock(Image.Service, {}),
+    // Prompt conversion is covered by session-prompt.test.ts; these fixtures keep attachments unchanged.
+    Layer.mock(MediaConversion.Service, { convert: () => Effect.succeed(null) }),
     options?.shell ?? Layer.mock(Shell.Service, {}),
   )
   const servicesFor = (ref: Location.Ref) => {
@@ -751,8 +754,8 @@ describe("SessionPrompt preparation", () => {
         input,
       }
       const items = yield* Effect.forEach([0, 1], () => SessionPrompt.prepare(request)).pipe(
-        Effect.provideService(Instance.Service, fixture.instances),
-        Effect.satisfiesServicesType<FSUtil.Service>(),
+        fixture.instances.provide(request.session),
+        Effect.satisfiesServicesType<FSUtil.Service | Database.Service>(),
       )
 
       expect(items[0]).toEqual(items[1])

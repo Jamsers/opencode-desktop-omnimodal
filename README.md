@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/@opencode/cli"><img alt="npm" src="https://img.shields.io/npm/v/@opencode/cli?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://github.com/anomalyco/opencode/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/release.yml?style=flat-square&branch=dev" /></a>
 </p>
 
 <p align="center">
@@ -61,10 +61,10 @@ To use this fork, build it from source instead of installing official OpenCode:
 bun install
 
 # run the app from packages/desktop/dist/win-unpacked
-bun --cwd packages/desktop ./scripts/build-omnimodal.ts
+bun --cwd packages/desktop ./script/build-omnimodal.ts
 
 # build a Windows installer to publish on the releases page
-bun --cwd packages/desktop ./scripts/build-omnimodal.ts --installer
+bun --cwd packages/desktop ./script/build-omnimodal.ts --installer
 ```
 
 Set `OPENCODE_VERSION` to change the fork's version (default `1.0.0`).
@@ -75,7 +75,7 @@ Releases are cut with the fork's release script, which builds the host platform'
 publishes a GitHub release that installed copies update from:
 
 ```bash
-bun --cwd packages/desktop ./scripts/release-omnimodal.ts 1.0.2   # or --bump=patch
+bun --cwd packages/desktop ./script/release-omnimodal.ts 1.0.2   # or --bump=patch
 ```
 
 Release tags are namespaced `omnimodal-v<version>` (upstream's legacy `v1.x` tags occupy plain

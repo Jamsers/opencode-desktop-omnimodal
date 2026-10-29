@@ -14,10 +14,10 @@ This repository is `opencode-desktop-omnimodal`, a personal fork of OpenCode (up
 
 ## Fork Build
 
-- Build with `bun --cwd packages/desktop ./scripts/build-omnimodal.ts` (`--installer` produces the publishable NSIS installer). `OPENCODE_VERSION` sets the fork's product version; it starts at `1.0.0` and never follows upstream's `2.x` numbering.
+- Build with `bun --cwd packages/desktop ./script/build-omnimodal.ts` (`--installer` produces the publishable NSIS installer). `OPENCODE_VERSION` sets the fork's product version; it starts at `1.0.0` and never follows upstream's `2.x` numbering.
 - Bump `OPENCODE_VERSION` on **every** build that will be installed: the desktop stages the CLI into a version-keyed directory (`<userData>/cli/<version>/`) and reuses the staged copy when the version matches, so a same-version rebuild never reaches the running service.
-- Release with `bun --cwd packages/desktop ./scripts/release-omnimodal.ts <version>` (`--bump=patch` follows the last `omnimodal-v*` tag). Release tags are `omnimodal-v<version>`: upstream's legacy `v1.x` tags saturate plain `v1.x`, and the fork never reuses upstream version numbers. `--attach` on a Linux or macOS host adds that platform's installers to an existing release, since electron-builder's packaging tools are host-native (Windows builds win-x64 only).
-- The desktop shell builds with `OPENCODE_CHANNEL=omnimodal` (fork identity lives in the `omnimodal` entries of `packages/desktop/src/main/constants.ts`, `packages/desktop/electron-builder.config.ts`, `packages/desktop/scripts/utils.ts`, the `Build` channel union in `packages/gui-extensions/src/sdk/core.ts`, and `packages/desktop/icons/omnimodal`), but `packages/cli` must build with `OPENCODE_CHANNEL=latest`. A CLI built on any other channel registers its background service as `service-<channel>.json` instead of `service.json`, and the desktop hangs on its loading screen waiting for `service.json`.
+- Release with `bun --cwd packages/desktop ./script/release-omnimodal.ts <version>` (`--bump=patch` follows the last `omnimodal-v*` tag). Release tags are `omnimodal-v<version>`: upstream's legacy `v1.x` tags saturate plain `v1.x`, and the fork never reuses upstream version numbers. `--attach` on a Linux or macOS host adds that platform's installers to an existing release, since electron-builder's packaging tools are host-native (Windows builds win-x64 only).
+- The desktop shell builds with `OPENCODE_CHANNEL=omnimodal` (fork identity lives in the `omnimodal` entries of `packages/desktop/src/main/constants.ts`, `packages/desktop/electron-builder.config.ts`, `packages/desktop/script/utils.ts`, the `Build` channel union in `packages/plugin/src/gui/core.ts`, and `packages/desktop/icons/omnimodal`), but `packages/cli` must build with `OPENCODE_CHANNEL=latest`. A CLI built on any other channel registers its background service as `service-<channel>.json` instead of `service.json`, and the desktop hangs on its loading screen waiting for `service.json`.
 - Fork installers publish to and update from this repository's GitHub releases only. Never point the fork at official OpenCode update feeds or reuse official version numbers.
 - The fork's NSIS installer is assisted (`oneClick: false`) on purpose: one-click per-user installers name their directory after the npm package (`@opencode-desktop`), colliding with official installs. Do not switch it back to one-click.
 - Fork and official installs share one background service and one data directory by design; whichever app launches swaps the service to its own version. Do not add fork changes to make them co-run.
@@ -27,9 +27,9 @@ This repository is `opencode-desktop-omnimodal`, a personal fork of OpenCode (up
 Weekly merges overlap these fork-owned paths; prefer upstream's text and re-apply the fork hunk.
 
 - **Ingestion + conversion UI**: `packages/app/src/composer/**`, `packages/app/src/runtime/{i18n/en.ts,platform/platform.tsx}`, `packages/ui/src/i18n/en.ts`.
-- **Conversion engine + Read hook**: `packages/util/src/media-{spec,cache,convert}.ts`, `packages/core/src/media-convert.ts`, `packages/core/src/tool/read-filesystem.ts`, `packages/core/src/{instance.ts,plugin/internal.ts}`, `packages/desktop/src/main/files/**`, `packages/desktop/src/{shared/ipc-rpc/files.ts,shared/ipc-contract.ts,renderer/api.ts,renderer/api-types.ts,renderer/platform/files.ts}`.
+- **Conversion engine + Read hook**: `packages/util/src/media-{spec,cache,convert}.ts`, `packages/core/src/media-convert.ts`, `packages/core/src/tool/read-filesystem.ts`, `packages/core/src/{instance.ts,plugin/internal.ts}`, `packages/core/test/{session-prompt.test.ts,session-owned.test.ts,fixture/prompt-location.ts}`, `packages/desktop/src/main/files/**`, `packages/desktop/src/{shared/ipc-rpc/files.ts,shared/ipc-contract.ts,renderer/api.ts,renderer/api-types.ts,renderer/platform/files.ts}`.
 - **Model forwarding**: `packages/ai/src/{media.ts,protocols/openai-chat.ts,providers/openrouter.ts}`, `packages/core/src/session/{model-request,compaction}.ts`, `packages/core/src/session/runner/to-llm-message.ts`.
-- **Identity/release**: `packages/desktop/{electron-builder.config.ts,scripts/*}`, `packages/desktop/src/main/{constants.ts,lifecycle/configure.ts}`, `packages/gui-extensions/src/sdk/core.ts`, `packages/desktop/icons/omnimodal`.
+- **Identity/release**: `packages/desktop/{electron-builder.config.ts,script/*}`, `packages/desktop/src/main/{constants.ts,lifecycle/configure.ts}`, `packages/plugin/src/gui/core.ts`, `packages/desktop/icons/omnimodal`.
 - **Shared state**: `<data>/media-convert.json` (global conversion toggle, default on) and `<data>/media-cache/` (content-keyed conversions; the 20 MiB ingestion cap applies to the converted output). Both are shared by the desktop and the CLI service.
 
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.
@@ -45,6 +45,12 @@ Weekly merges overlap these fork-owned paths; prefer upstream's text and re-appl
 - Pass a directory after the script when needed, for example `bun run dev:live /path/to/project`.
 - The script discovers the server with `opencode service status`, injects its private local credential from `opencode service get password`, and uses the `dev` TUI storage channel so tabs and other client-local state match the installed client.
 - Prefer `dev:live` over plain `bun run dev` for this workflow. An implicit managed-service connection may replace the live server when the worktree client version differs; explicit `--server` warns and continues without replacing it.
+
+## Live Desktop Diagnostics
+
+- When attaching Playwright to a running desktop app, use `chromium.connectOverCDP(endpoint, { noDefaults: true })`.
+- Without `noDefaults`, Playwright applies light-mode media emulation during attachment. An app following the system theme then flashes light until the connection closes. The option also preserves the existing focus and other media preferences.
+- Do not emulate a color scheme or reduced-motion preference on the user's live window unless explicitly requested; use an isolated test context for those scenarios.
 
 ## TUI Stories
 
@@ -73,6 +79,8 @@ Use conventional commit-style messages and PR titles: `type(scope): summary`.
 Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`. Scopes are optional; use the affected package or area when helpful, e.g. `core`, `opencode`, `tui`, `app`, `desktop`, `sdk`, or `plugin`.
 
 Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributing guide`, `chore(sdk): regenerate types`.
+
+For user-facing `feat`, `fix` and `perf` PRs, add a small looping animated SVG of the change under `### Visual` in the PR body (a `svg` code block, 240×72, for example a dock growing out of the composer or spinners turning in step). Draw with `currentColor` and opacity so it works in light and dark, make the unanimated state a good still (it is shown under reduced motion), animate with CSS or SMIL only, and keep it under 8 KB with no scripts or external references. The desktop beta's "What's new" dialog shows it.
 
 ## Style Guide
 
@@ -197,12 +205,23 @@ const table = sqliteTable("session", {
 })
 ```
 
+### Experimental API
+
+- An experimental endpoint lives at `/api/experimental/<group>/...`, its OpenAPI identifier is `experimental.<group>.<method>`, and it lands in the SDK as `client.experimental.<group>.<method>`. Its description says "Experimental: may change without compatibility guarantees."
+- `packages/protocol/test/experimental-identifiers.test.ts` enforces the path and identifier match in both directions; the SDK namespace follows from the path.
+- An experimental field or parameter on a stable endpoint goes under an `experimental` key (`experimental.<name>`), the same way config does (`config.experimental.*`).
+- New endpoints and new default behaviors start experimental.
+- To graduate one, move the route out of `/api/experimental`, drop the `experimental.` prefix, and note it in `CHANGELOG.md`.
+- Experimental HTTP routes change without aliases: rename or remove the route, then update the callers.
+- A breaking move of shipped SDK or plugin API (including moving it under `experimental`) keeps the old path and type names as deprecated aliases of the new ones until the next minor, each marked `@deprecated` with the replacement and "Removed in the next minor". Generated SDK moves get them from the codegen (`compile(..., { aliases: true })` in `packages/client/script/generate.ts`), not by hand.
+- Experimental plugin hooks are named `experimental.*` (`experimental.ws.handshake`).
+
 ## Testing
 
 - Avoid mocks as much as possible, you shouldn't be using globalThis.\* at all unless it's the only option.
 - Test actual implementation, do not duplicate logic into tests
 - Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package directories such as `packages/core`.
-- Before writing or changing tests, read the matching skill in `.opencode/skills`: `unit-tests` (bun test), `tui-tests` (OpenTUI renderer tests), `app-e2e-tests` (Playwright in `packages/app/e2e`) or `component-tests` (Storybook Playwright). They cover what has made tests slow or flaky in CI.
+- Before writing or changing tests, read the matching skill in `.opencode/skills`: `unit-tests` (bun test), `tui-tests` (OpenTUI renderer tests), `app-e2e-tests` (Playwright in `packages/app/e2e`) or `component-tests` (Playwright on stories, `packages/stories`). They cover what has made tests slow or flaky in CI.
 
 ## Checks
 

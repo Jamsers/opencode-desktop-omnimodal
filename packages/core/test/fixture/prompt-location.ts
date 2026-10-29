@@ -3,6 +3,7 @@ import { Bus } from "@opencode/core/bus"
 import { Image } from "@opencode/core/image"
 import { LocationServiceMap } from "@opencode/core/location-service-map"
 import type { LocationServices } from "@opencode/core/location-services"
+import { MediaConversion } from "@opencode/core/media-convert"
 import { Plugin } from "@opencode/core/plugin"
 import { PluginHooks } from "@opencode/core/plugin/hooks"
 import { Skill } from "@opencode/core/skill"
@@ -20,10 +21,12 @@ export const promptLocationNode = makeGlobalNode({
       const bus = yield* Bus.Service
       return yield* LayerMap.make(
         (_ref: Location.Ref) =>
-          LayerNode.compile(LayerNode.group([PluginHooks.node, Image.node, Skill.node, Plugin.node]), {
+          LayerNode.compile(LayerNode.group([PluginHooks.node, Image.node, MediaConversion.node, Skill.node, Plugin.node]), {
             replacements: [
               Bus.node.replace(Layer.succeed(Bus.Service, bus)),
               Plugin.node.replace(Layer.mock(Plugin.Service, { awaitActivation: Effect.void })),
+              // Prompt conversion is covered by session-prompt.test.ts; these fixtures keep attachments unchanged.
+              MediaConversion.node.replace(Layer.mock(MediaConversion.Service, { convert: () => Effect.succeed(null) })),
             ],
           }) as unknown as Layer.Layer<LocationServices, FileSystem.DirectoryNotFoundError>,
       )
