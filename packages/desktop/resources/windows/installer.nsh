@@ -9,20 +9,26 @@
 
 !macro customInit
   StrCpy $sharedInstallDir ""
-  ${StdUtils.GetParentPath} $R0 $INSTDIR
-  ${If} $INSTDIR == "$R0\${APP_FILENAME}"
-    ${If} ${FileExists} "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
-      StrCpy $sharedInstallDir $INSTDIR
-      ; The old uninstaller would delete every channel's files from the shared directory, so the
-      ; install skips it and removes only this channel's files afterwards. The install writes the
-      ; uninstall entry again for the new directory.
-      DeleteRegValue SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" UninstallString
-      !ifdef UNINSTALL_REGISTRY_KEY_2
-        DeleteRegValue SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY_2}" UninstallString
-      !endif
+  ; Omnimodal: an assisted installer already installs into its own product-named directory, which no
+  ; other channel shares. Upstream's migration below exists for one-click installers, whose shared
+  ; package-named directory every channel used to overwrite. Running it for an assisted install moved
+  ; the app to the app-id directory and deleted the folder the user and its shortcuts point at.
+  !ifdef ONE_CLICK
+    ${StdUtils.GetParentPath} $R0 $INSTDIR
+    ${If} $INSTDIR == "$R0\${APP_FILENAME}"
+      ${If} ${FileExists} "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+        StrCpy $sharedInstallDir $INSTDIR
+        ; The old uninstaller would delete every channel's files from the shared directory, so the
+        ; install skips it and removes only this channel's files afterwards. The install writes the
+        ; uninstall entry again for the new directory.
+        DeleteRegValue SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" UninstallString
+        !ifdef UNINSTALL_REGISTRY_KEY_2
+          DeleteRegValue SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY_2}" UninstallString
+        !endif
+      ${EndIf}
+      StrCpy $INSTDIR "$R0\${APP_ID}"
     ${EndIf}
-    StrCpy $INSTDIR "$R0\${APP_ID}"
-  ${EndIf}
+  !endif
 !macroend
 
 !macro customInstall
@@ -188,12 +194,15 @@
       ${AndIf} ${FileExists} "$R1\${APP_EXECUTABLE_FILENAME}"
       ${AndIf} $R2 > $R3
         !insertmacro removeStagedUpdates $R1
-        ; Stage beside the directory the install will use, which customInit moves out of the shared one.
+        ; Stage beside the directory the install will use. Only a one-click install moves out of the
+        ; shared package-named directory; an assisted install keeps the directory it read here.
         ${StdUtils.GetParentPath} $R5 $R1
-        ${If} $R1 == "$R5\${APP_FILENAME}"
-          StrCpy $R1 "$R5\${APP_ID}"
-          !insertmacro removeStagedUpdates $R1
-        ${EndIf}
+        !ifdef ONE_CLICK
+          ${If} $R1 == "$R5\${APP_FILENAME}"
+            StrCpy $R1 "$R5\${APP_ID}"
+            !insertmacro removeStagedUpdates $R1
+          ${EndIf}
+        !endif
         InitPluginsDir
         ; Stored like the template's copy, so the installer keeps one copy of the payload.
         !ifdef COMPRESS

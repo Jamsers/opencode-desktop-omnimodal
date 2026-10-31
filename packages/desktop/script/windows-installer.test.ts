@@ -127,6 +127,35 @@ windows(
   120_000,
 )
 
+// An assisted install keeps the directory it already uses. Upstream's migration to the app-id
+// directory exists for one-click installers, whose channels shared one package-named directory.
+windows(
+  "does not move an assisted install out of its directory",
+  async () => {
+    const installer = await harness()
+
+    try {
+      const shared = path.join(installer.dir, "@opencodedesktop")
+      const exe = await installer.compile(
+        "no-migration",
+        `  StrCpy $INSTDIR "${shared}"
+  !insertmacro customInit
+  FileOpen $0 "$EXEDIR\\install-dir.txt" w
+  FileWrite $0 "$INSTDIR"
+  FileClose $0`,
+      )
+
+      const result = await installer.run([exe])
+      expect(result.code, `${result.stdout}\n${result.stderr}`).toBe(0)
+      expect(await Bun.file(path.join(installer.dir, "install-dir.txt")).text()).toBe(shared)
+    } finally {
+      await installer.cleanup()
+    }
+  },
+  120_000,
+)
+
+
 // The running app unpacks an update beside the install directory before the restart. The install takes it
 // only when it belongs to this payload and the old version is gone, and never leaves a staged copy behind.
 const stagedCases = [
@@ -261,7 +290,8 @@ windows(
     try {
       const exe = await installer.compile(
         "directory",
-        `  !insertmacro customInit
+        `  !define ONE_CLICK
+  !insertmacro customInit
   FileOpen $0 "$EXEDIR\\instdir.txt" w
   FileWrite $0 $INSTDIR
   FileClose $0
