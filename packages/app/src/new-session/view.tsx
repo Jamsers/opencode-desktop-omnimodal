@@ -18,6 +18,7 @@ import {
 import { Schema } from "effect"
 import { createPresence } from "@/runtime/presence"
 import { Composer } from "@/composer/composer"
+import { OpenRouterKeyControl } from "@/composer/openrouter-key"
 import { ComposerDropzone } from "@/composer/dropzone"
 import type { ComposerModel } from "@/composer/model"
 import {
@@ -73,6 +74,7 @@ export function NewSessionView(props: {
   )
 
   const settings = useSettings()
+  const workspaceLocation = useWorkspaceLocation()
 
   const [wordmark, setWordmark] = createStore<WordmarkState>({ mode: "flat", game: false })
 
@@ -107,7 +109,16 @@ export function NewSessionView(props: {
             <div class="mt-8 flex flex-col gap-3">
               <div data-slot="new-session-composer" class="flex flex-col gap-1">
                 <div class="relative z-10">
-                  <Composer model={props.composer} />
+                  <Composer
+                    model={props.composer}
+                    authControl={
+                      <OpenRouterKeyControl
+                        sessionID={() => undefined}
+                        providerID={() => props.composer.model.selection.current()?.provider.id}
+                        directory={() => workspaceLocation().directory}
+                      />
+                    }
+                  />
                 </div>
                 <Show when={props.project.selected()}>
                   {(project) => (

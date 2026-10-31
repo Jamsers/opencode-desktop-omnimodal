@@ -16,6 +16,7 @@ import { Context, Effect, Layer, Schema, Struct } from "effect"
 import { AISDK } from "./aisdk.js"
 import { Credential } from "./credential.js"
 import { Integration } from "./integration.js"
+import { IntegrationConnection } from "./integration/connection.js"
 import { Capabilities, ID, Info, Model, Ref, VariantID } from "./model.js"
 import type { RuntimeInfo } from "./model.js"
 import { Npm } from "@opencode/util/npm"
@@ -148,6 +149,17 @@ export type MediaError =
 export interface Interface {
   readonly resolve: (requested?: Ref) => Effect.Effect<Resolved | undefined, Error>
   readonly resolveModel: (model: Info, variant?: VariantID) => Effect.Effect<Resolved, Error>
+  /**
+   * Resolve with an explicit integration connection instead of the active one.
+   * Used for per-session credential overrides (e.g. a chat pinned to one
+   * OpenRouter key); falls back to the active connection when the override
+   * cannot be resolved.
+   */
+  readonly resolveModelWithConnection: (
+    model: Info,
+    variant?: VariantID,
+    connection?: IntegrationConnection.Info,
+  ) => Effect.Effect<Resolved, Error>
   /** An enabled image model by ref, or undefined when no image model has that ref. */
   readonly resolveImage: (ref: Ref) => Effect.Effect<ImageModel | undefined, MediaError>
   /** An enabled decision model by ref, or undefined when no decision model has that ref. */
@@ -450,21 +462,60 @@ export const layer = Layer.effect(
       loadPackage: (specifier) => Provider.loadPackage(specifier, npm),
       loadAISDK: (model) => aisdk.model(model),
     }
-    const prepare = Effect.fn("ModelResolver.prepare")(function* (selected: Info, variant?: VariantID) {
+    const prepare = Effect.fn("ModelResolver.prepare")(function* (
+      selected: Info,
+      variant?: VariantID,
+      override?: IntegrationConnection.Info,
+    ) {
       const provider = yield* providers.get(selected.providerID)
-      const connection = yield* integrations.connection.active(
+      const active = yield* integrations.connection.active(
         provider?.integrationID ?? Integration.ID.make(selected.providerID),
       )
+      const connection = override ?? active
       const credential = connection ? yield* integrations.connection.resolve(connection) : undefined
+      const resolved =
+        credential === undefined && override !== undefined && active !== undefined
+          ? yield* integrations.connection.resolve(active)
+          : credential
       const selectedVariant = yield* withVariant(selected, variant)
       const runtimeInfo: RuntimeInfo = {
         ...selectedVariant,
         settings: Provider.mergeOverlay(provider?.settings, Provider.modelSettings(selectedVariant.settings)),
       }
-      return { provider, credential, runtimeInfo }
+      return { provider, credential: resolved ?? credential, runtimeInfo }
     })
     const load = Effect.fn("ModelResolver.resolveModel")(function* (selected: Info, variant?: VariantID) {
       const { provider, credential, runtimeInfo } = yield* prepare(selected, variant)
+      const model = yield* fromCatalogModel(runtimeInfo, credential, dependencies)
+      const runtime =
+        provider?.activation === "enabled" &&
+        credential === undefined &&
+        !hasConfiguredAuth(runtimeInfo) &&
+        usesAPIKeyAuth(runtimeInfo.package)
+          ? LanguageModel.update(model, { route: model.route.with({ auth: Auth.none }) })
+          : model
+      return {
+        model: runtime,
+        ref: Ref.make({
+          id: selected.id,
+          providerID: selected.providerID,
+          ...(variant === undefined ? {} : { variant }),
+        }),
+        capabilities: selected.capabilities,
+        cost: selected.cost,
+        limit: selected.limit,
+        compaction: runtimeInfo.settings?.compaction,
+        cache: runtimeInfo.settings?.cache,
+        transport: provider?.settings?.transport,
+        chunkTimeout: Provider.timeout(provider?.settings?.chunkTimeout),
+      }
+    })
+    const loadWithConnection = Effect.fn("ModelResolver.resolveModelWithConnection")(function* (
+      selected: Info,
+      variant?: VariantID,
+      connection?: IntegrationConnection.Info,
+    ) {
+      const { provider, credential, runtimeInfo } = yield* prepare(selected, variant, connection)
       const model = yield* fromCatalogModel(runtimeInfo, credential, dependencies)
       const runtime =
         provider?.activation === "enabled" &&
@@ -520,6 +571,7 @@ export const layer = Layer.effect(
         return yield* load(selected, requested?.variant)
       }),
       resolveModel: load,
+      resolveModelWithConnection: loadWithConnection,
       resolveImage: Effect.fn("ModelResolver.resolveImage")(function* (ref) {
         return yield* loadMedia(ref, "image", isImageModel)
       }),

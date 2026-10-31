@@ -9,7 +9,7 @@ import { Project } from "./project.js"
 import { AbsolutePath, DateTimeUtcFromMillis, optional, RelativePath, statics } from "./schema.js"
 import { SessionEvent } from "./session-event.js"
 import { SessionID } from "./session-id.js"
-import { SessionMetadata } from "./session-metadata.js"
+import { SessionMetadata, OpenRouterCredentialMetadataKey } from "./session-metadata.js"
 import { Money } from "./money.js"
 import { Permission } from "./permission.js"
 import { TokenUsage } from "./token-usage.js"
@@ -21,6 +21,8 @@ export type ID = SessionID
 
 export const Metadata = SessionMetadata
 export type Metadata = SessionMetadata
+
+export const OpenRouterCredentialKey = OpenRouterCredentialMetadataKey
 
 export const Event = SessionEvent
 

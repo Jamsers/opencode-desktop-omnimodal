@@ -6,6 +6,8 @@ import { Model } from "@opencode/schema/model"
 import { Provider } from "@opencode/schema/provider"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Agent } from "../../agent.js"
+import { Credential } from "../../credential.js"
+import { IntegrationConnection } from "../../integration/connection.js"
 import { ModelResolver } from "../../model-resolver.js"
 import { SessionSchema } from "../schema.js"
 
@@ -76,14 +78,22 @@ const layer = Layer.effect(
     return Service.of({
       resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session, available) {
         // Location plugins populate and filter the catalog asynchronously during layer startup.
+        const override = openRouterConnectionOverride(session)
         if (!session.model) {
           const agent = (yield* agents.select(session.agent)).info?.model
           const preferred =
             agent &&
             (yield* available()).find((model) => model.providerID === agent.providerID && model.id === agent.id)
-          const resolved = preferred
-            ? yield* resolver.resolveModel(preferred, agent.variant)
-            : yield* resolver.resolve()
+          if (preferred) {
+            if (override && preferred.providerID === "openrouter")
+              return yield* resolver.resolveModelWithConnection(preferred, agent.variant, override)
+            return yield* resolver.resolveModel(preferred, agent.variant)
+          }
+          if (override) {
+            const fallback = (yield* available()).find((model) => model.providerID === "openrouter")
+            if (fallback) return yield* resolver.resolveModelWithConnection(fallback, undefined, override)
+          }
+          const resolved = yield* resolver.resolve()
           if (resolved) return resolved
           return yield* new ModelNotSelectedError({ sessionID: session.id })
         }
@@ -95,6 +105,8 @@ const layer = Layer.effect(
             providerID: session.model.providerID,
             modelID: session.model.id,
           })
+        if (override && selected.providerID === "openrouter")
+          return yield* resolver.resolveModelWithConnection(selected, session.model.variant, override)
         return yield* resolver.resolveModel(selected, session.model.variant)
       }),
     })
@@ -102,3 +114,19 @@ const layer = Layer.effect(
 )
 
 export const node = makeLocationNode({ service: Service, layer, deps: [ModelResolver.node, Agent.node] })
+
+/**
+ * Explicit OpenRouter credential for one session, from its durable metadata.
+ * Only stored credential IDs are honored; anything else falls back to the
+ * integration's active connection at resolve time.
+ */
+function openRouterConnectionOverride(session: SessionSchema.Info): IntegrationConnection.Info | undefined {
+  const raw = session.metadata?.[SessionSchema.OpenRouterCredentialKey]
+  if (typeof raw !== "string" || !raw.startsWith("cred_")) return undefined
+  return {
+    type: "credential",
+    id: Credential.ID.make(raw),
+    label: "",
+    method: "key",
+  }
+}

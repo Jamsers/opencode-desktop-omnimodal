@@ -77,6 +77,7 @@ export type ComposerEditorProps = {
   class?: string
   modelControl?: JSX.Element
   modelControlsVisible?: boolean
+  authControl?: JSX.Element
   mediaControl?: JSX.Element
   attachKeybind?: string[]
   attachShortcut?: string
@@ -444,6 +445,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
                     </Show>
                   )}
                 </Show>
+                {props.authControl}
               </Show>
             </div>
           </div>
@@ -987,7 +989,7 @@ function pointerFocusReturn() {
   }
 }
 
-function ComposerEditorConfiguredSelect(props: {
+export function ComposerEditorConfiguredSelect(props: {
   mobileDrawer?: boolean
   title: string
   keybind?: string[]

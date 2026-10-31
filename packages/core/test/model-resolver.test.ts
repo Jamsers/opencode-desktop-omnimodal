@@ -1641,4 +1641,108 @@ describe("ModelResolver", () => {
       expect(ModelResolver.hasPackage(model(undefined))).toBe(false)
     }),
   )
+
+  it.effect("resolveModelWithConnection prefers the override credential over the active one", () =>
+    withConfigEnv({}, () => {
+      const selected = model("@opencode/ai/providers/openrouter", {
+        providerID: Provider.ID.make("openrouter"),
+        modelID: "override-model",
+      })
+      const provider = Provider.Info.make({
+        ...Provider.Info.empty(selected.providerID),
+        activation: "enabled",
+        package: selected.package ?? "",
+        settings: selected.settings,
+        headers: selected.headers,
+      })
+      const providers = Layer.mock(Provider.Service, {
+        get: () => Effect.succeed(provider),
+      })
+      const models = Layer.mock(Model.Service, {
+        get: () => Effect.succeed(selected),
+      })
+      const credentials: Record<string, string> = {
+        cred_active: "active-key",
+        cred_override: "override-key",
+      }
+      const integrations = Layer.mock(Integration.Service, {
+        revision: () => 0,
+        connection: {
+          active: () =>
+            Effect.succeed({
+              type: "credential",
+              id: Credential.ID.make("cred_active"),
+              label: "active",
+              method: "key",
+            } as const),
+          resolve: (connection) =>
+            Effect.succeed(
+              connection.type === "credential" && credentials[connection.id] !== undefined
+                ? Credential.Key.make({ type: "key", key: credentials[connection.id] })
+                : undefined,
+            ),
+          key: () => Effect.die("unused"),
+          external: () => Effect.die("unused"),
+          activate: () => Effect.die("unused"),
+          update: () => Effect.die("unused"),
+          remove: () => Effect.die("unused"),
+          status: () => Effect.die("unused"),
+        },
+        oauth: {
+          connect: () => Effect.die("unused"),
+          status: () => Effect.die("unused"),
+          complete: () => Effect.die("unused"),
+          cancel: () => Effect.die("unused"),
+        },
+        command: {
+          connect: () => Effect.die("unused"),
+          status: () => Effect.die("unused"),
+          cancel: () => Effect.die("unused"),
+        },
+      })
+      const npm = Layer.mock(Npm.Service, {
+        add: () => Effect.die("unused"),
+        which: () => Effect.die("unused"),
+      })
+      const aisdk = Layer.mock(AISDK.Service, {
+        hook: {
+          sdk: () => Effect.die("unused"),
+          language: () => Effect.die("unused"),
+        },
+        model: () => Effect.die("unused"),
+      })
+      const layer = ModelResolver.layer.pipe(
+        Layer.provide(Layer.mergeAll(providers, models, integrations, npm, aisdk)),
+      )
+      const authorization = (resolved: ModelResolver.Resolved) =>
+        resolved.model.route.auth.apply({
+          request: LLM.request({ model: resolved.model, prompt: "Hello" }),
+          method: "POST",
+          url: resolved.model.route.endpoint.baseURL ?? "",
+          body: "{}",
+          headers: Headers.empty,
+        })
+
+      return Effect.gen(function* () {
+        const resolver = yield* ModelResolver.Service
+        const overridden = yield* resolver.resolveModelWithConnection(selected, undefined, {
+          type: "credential",
+          id: Credential.ID.make("cred_override"),
+          label: "override",
+          method: "key",
+        })
+
+        expect(yield* authorization(overridden)).toMatchObject({ authorization: "Bearer override-key" })
+
+        const fallback = yield* resolver.resolveModelWithConnection(selected, undefined, {
+          type: "credential",
+          id: Credential.ID.make("cred_missing"),
+          label: "missing",
+          method: "key",
+        })
+
+        expect(yield* authorization(fallback)).toMatchObject({ authorization: "Bearer active-key" })
+      }).pipe(Effect.provide(layer))
+    }),
+  )
 })

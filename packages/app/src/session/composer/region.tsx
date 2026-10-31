@@ -7,6 +7,7 @@ import { makeEventListener } from "@solid-primitives/event-listener"
 import { useNavigate } from "@solidjs/router"
 import { createEffect, createMemo, on, onCleanup, onMount, Show, type Accessor } from "solid-js"
 import { Composer } from "@/composer/composer"
+import { OpenRouterKeyControl } from "@/composer/openrouter-key"
 import { VoiceComposer } from "@/voice/composer"
 import { useComposerState } from "@/composer/persistence"
 import { createComposerControls } from "@/composer/selection"
@@ -590,6 +591,13 @@ export function ActiveSessionComposerRegion(props: {
                   borderUnderlay
                   readOnly={props.model.queue.undoing()}
                   suggestionBoundary={props.suggestionBoundary}
+                  authControl={
+                    <OpenRouterKeyControl
+                      sessionID={() => props.session.identity.params.id}
+                      providerID={() => props.model.composer.model.selection.current()?.provider.id}
+                      directory={() => location().directory}
+                    />
+                  }
                 />
               </VoiceComposer>
             </div>

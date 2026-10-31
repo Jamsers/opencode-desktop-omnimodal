@@ -16,6 +16,7 @@ import { createWorktree } from "@/workspaces/create"
 import { showToast } from "@/shell/notifications/toast"
 import { SessionRouteKey, SessionStateKey } from "@/runtime/server/scope"
 import { createSessionMessageHandoff } from "@/session/handoff"
+import { consumeDraftOpenRouterKey, readDraftOpenRouterKey } from "@/composer/openrouter-key"
 import type { DraftMcpControls } from "./mcp"
 
 export function createNewSessionComposerAdapter(props: {
@@ -104,8 +105,33 @@ export function createNewSessionComposerAdapter(props: {
         location: { directory: sessionDirectory },
       })
 
+      // A key picked before the chat exists rides along as session metadata so
+      // the first turn already resolves with it. It joins the creation gate,
+      // so no prompt can drain before the metadata lands.
+      const draftKey = readDraftOpenRouterKey(currentDirectory)
+
       const creation = created.request.then(
-        () => ({ ok: true as const }),
+        async () => {
+          if (draftKey) {
+            consumeDraftOpenRouterKey(currentDirectory)
+
+            try {
+              await serverSDK.api.session.update({
+                sessionID: created.id,
+                metadata: { [Session.OpenRouterCredentialKey]: draftKey },
+              })
+            } catch (error) {
+              showToast({
+                title: language.t("prompt.toast.sessionCreateFailed.title"),
+                description: errorMessage(language, error),
+              })
+
+              return { ok: false as const, error }
+            }
+          }
+
+          return { ok: true as const }
+        },
         (error) => {
           showToast({
             title: language.t("prompt.toast.sessionCreateFailed.title"),
