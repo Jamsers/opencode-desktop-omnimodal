@@ -16,7 +16,8 @@ import { createWorktree } from "@/workspaces/create"
 import { showToast } from "@/shell/notifications/toast"
 import { SessionRouteKey, SessionStateKey } from "@/runtime/server/scope"
 import { createSessionMessageHandoff } from "@/session/handoff"
-import { consumeDraftOpenRouterKey, readDraftOpenRouterKey } from "@/composer/openrouter-key"
+import { consumeDraftApiKey, readDraftApiKey } from "@/composer/api-key"
+import { consumeDraftMediaConversion, readDraftMediaConversion } from "@/composer/media-toggle"
 import type { DraftMcpControls } from "./mcp"
 
 export function createNewSessionComposerAdapter(props: {
@@ -105,20 +106,31 @@ export function createNewSessionComposerAdapter(props: {
         location: { directory: sessionDirectory },
       })
 
-      // A key picked before the chat exists rides along as session metadata so
-      // the first turn already resolves with it. It joins the creation gate,
+      // Drafts picked before the chat exists ride along as session metadata so
+      // the first turn already honors them. They join the creation gate,
       // so no prompt can drain before the metadata lands.
-      const draftKey = readDraftOpenRouterKey(currentDirectory)
+      const metadata: Record<string, string | boolean> = {}
+      const draftKey = readDraftApiKey(currentDirectory)
+
+      if (draftKey) {
+        consumeDraftApiKey(currentDirectory)
+        metadata[Session.CredentialKey] = draftKey
+      }
+
+      const draftMedia = readDraftMediaConversion(currentDirectory)
+
+      if (draftMedia !== undefined) {
+        consumeDraftMediaConversion(currentDirectory)
+        metadata[Session.MediaConversionKey] = draftMedia
+      }
 
       const creation = created.request.then(
         async () => {
-          if (draftKey) {
-            consumeDraftOpenRouterKey(currentDirectory)
-
+          if (Object.keys(metadata).length > 0) {
             try {
               await serverSDK.api.session.update({
                 sessionID: created.id,
-                metadata: { [Session.OpenRouterCredentialKey]: draftKey },
+                metadata,
               })
             } catch (error) {
               showToast({

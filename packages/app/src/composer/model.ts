@@ -32,7 +32,9 @@ import type { PromptHistoryComment } from "./history/entry"
 import { createComposerHistory } from "./history/store"
 import { createComposerSubmit } from "./submit"
 import { useAttachmentDestination } from "./attachments/destination"
+import { mediaConversion } from "./attachments/media"
 import { parseClientSlashCommand } from "./client-slash-command"
+import { readDraftMediaConversion } from "./media-toggle"
 
 export type ComposerModel = ComposerEditorModel & {
   readonly model: ComposerControls["model"]
@@ -480,6 +482,20 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
       picker: platform.openAttachmentPickerDialog,
       directory: () => sdk().directory,
       destination: useAttachmentDestination(adapter.controls),
+      conversionEnabled: () => {
+        // A per-chat Raw media pick disables conversion; anything else defers to the shared preference.
+        if (adapter.kind === "active-session") {
+          const raw = data.session.get(adapter.session().id)?.metadata?.[Session.MediaConversionKey]
+
+          if (typeof raw === "boolean") return raw
+        } else {
+          const draft = readDraftMediaConversion(sdk().directory)
+
+          if (draft !== undefined) return draft
+        }
+
+        return mediaConversion.enabled()
+      },
       isDialogActive: () => !!dialog.active,
       duplicate: () => showToast({ title: language.t("prompt.toast.attachmentDuplicate.title") }),
       onUploadError: (error) =>

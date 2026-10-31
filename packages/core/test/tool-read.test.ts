@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect } from "bun:test"
 import path from "path"
-import { Effect, Exit, Layer, Result } from "effect"
+import { Effect, Exit, Layer, Result, Schema } from "effect"
 import { Config } from "@opencode/core/config"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNode } from "@opencode/util/effect/layer-node"
@@ -10,6 +10,7 @@ import { Location } from "@opencode/core/location"
 import { Image } from "@opencode/core/image"
 import { Permission } from "@opencode/core/permission"
 import { Session } from "@opencode/core/session"
+import { Project } from "@opencode/core/project"
 import { AbsolutePath, RelativePath } from "@opencode/core/schema"
 import { Global } from "@opencode/util/global"
 import { FileAccess } from "@opencode/core/file-access"
@@ -33,6 +34,7 @@ const readToolNode = makeLocationNode({
     FileAccess.node,
     Image.node,
     Permission.node,
+    Session.node,
     SessionInstructions.node,
     FSUtil.node,
     Location.node,
@@ -46,6 +48,7 @@ const readCalls: {
   input: AbsolutePath
   page: ReadToolFileSystem.PageInput
 }[] = []
+const readConverts: Array<boolean | undefined> = []
 const listCalls: AbsolutePath[] = []
 let readDefect: unknown
 let missingDirectories: string[] = []
@@ -68,10 +71,11 @@ const reader = Layer.succeed(
       if (missingDirectories.includes(input)) return Effect.fail(new Environment.NotFound({ path: input }))
       return Effect.succeed(directoryEntryDetails)
     },
-    read: (input, resource, page = {}) => {
+    read: (input, resource, page = {}, options) => {
       readCalls.push({ input, page })
+      readConverts.push(options?.convert)
       if (readDefect !== undefined) return Effect.die(readDefect)
-      if (readOverride) return readOverride(input, resource, page)
+      if (readOverride) return readOverride(input, resource, page, options)
       if (readFailure !== undefined) return Effect.fail(readFailure)
       return Effect.succeed(readResult)
     },
@@ -115,6 +119,16 @@ const readLayer = (imageLayer: Layer.Layer<Image.Service>) =>
       Image.node.replace(imageLayer),
       Location.node.replace(locationLayer),
       Global.node.replace(Global.layerWith({ data: Global.Path.data })),
+      Session.node.replace(
+        Layer.mock(Session.Service, {
+          get: () => Effect.succeed(sessionInfo(sessionMetadata)),
+          revert: {
+            stage: () => Effect.die("unimplemented"),
+            clear: () => Effect.die("unimplemented"),
+            commit: () => Effect.die("unimplemented"),
+          },
+        }),
+      ),
     ]),
     // Merge by reference so Config.Test and Image.Service resolve to the memoized instances.
     config,
@@ -124,10 +138,25 @@ const it = testEffect(readLayer(imageLayer))
 const itWithoutResizer = testEffect(readLayer(unavailableImage))
 const sessionID = Session.ID.make("ses_read_tool_test")
 
+// The session the tool reads run in; the mock serves whatever metadata the case sets.
+let sessionMetadata: Session.Info["metadata"] = undefined
+const sessionInfo = (metadata: Session.Info["metadata"]) =>
+  Schema.decodeUnknownSync(Session.Info)({
+    id: sessionID,
+    projectID: Project.ID.global,
+    cost: 0,
+    tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+    time: { created: Date.now(), updated: Date.now() },
+    location: { directory: process.cwd() },
+    ...(metadata === undefined ? {} : { metadata }),
+  })
+
 describe("ReadTool", () => {
   beforeEach(() => {
     assertions.length = 0
     readCalls.length = 0
+    readConverts.length = 0
+    sessionMetadata = undefined
     listCalls.length = 0
     allow = true
     deniedResource = undefined
@@ -180,6 +209,26 @@ describe("ReadTool", () => {
         },
       ])
       expect(listCalls).toEqual([])
+    }),
+  )
+
+  it.effect("follows the chat's media conversion choice", () =>
+    Effect.gen(function* () {
+      const registry = yield* Tool.Service
+      const read = (id: string) =>
+        executeTool(registry, {
+          sessionID,
+          ...toolIdentity,
+          call: { type: "tool-call", id, name: "read", input: { path: "README.md" } },
+        })
+
+      sessionMetadata = { mediaConversion: false }
+      expect(yield* read("call-convert-off")).toMatchObject({ status: "completed" })
+      expect(readConverts.at(-1)).toBe(false)
+
+      sessionMetadata = undefined
+      expect(yield* read("call-convert-default")).toMatchObject({ status: "completed" })
+      expect(readConverts.at(-1)).toBe(true)
     }),
   )
 

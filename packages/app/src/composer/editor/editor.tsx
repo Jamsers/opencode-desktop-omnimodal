@@ -434,6 +434,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
                 )}
               </Show>
               <Show when={props.modelControlsVisible ?? true}>
+                {props.authControl}
                 {props.modelControl}
                 <Show when={view.variant} keyed>
                   {(control) => (
@@ -448,7 +449,6 @@ export function ComposerEditor(props: ComposerEditorProps) {
                     </Show>
                   )}
                 </Show>
-                {props.authControl}
                 {props.mediaControl}
               </Show>
             </div>

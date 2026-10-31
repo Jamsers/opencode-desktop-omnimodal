@@ -106,6 +106,7 @@ export interface Interface {
     path: AbsolutePath,
     resource: string,
     page?: PageInput,
+    options?: { convert?: boolean },
   ) => Effect.Effect<FileContent | TextPage | ListPage, ReadError>
 }
 
@@ -137,7 +138,7 @@ export const read = Effect.fn("ReadTool.read")(function* (
   const media = Mime.detectNamed(first.bytes, input)
   if (Mime.isMedia(media)) {
     const name = path.basename(input)
-    // The switch is global, so agent reads honor the same toggle as attachments.
+    // A per-chat Raw media pick disables conversion; anything else defers to the shared preference.
     const converted = conversion ? yield* conversion.convert({ path: input, name, mime: media }) : null
 
     if (converted?.converted) {
@@ -414,7 +415,8 @@ const layer = Layer.effect(
     const conversion = yield* MediaConversion.Service
     return Service.of({
       list: environment.files.list,
-      read: (path, resource, page) => read(environment.files, path, resource, page, conversion),
+      read: (path, resource, page, options) =>
+        read(environment.files, path, resource, page, options?.convert === false ? undefined : conversion),
     })
   }),
 )

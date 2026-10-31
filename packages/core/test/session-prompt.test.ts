@@ -577,6 +577,34 @@ describe("Session.prompt", () => {
     }),
   )
 
+  it.effect("leaves media raw for a chat with Raw media", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* Session.Service
+      const directory = yield* tmpdirScoped("opencode-session-prompt-")
+      const source = path.join(directory.path, "small.mp4")
+      const bytes = Buffer.from([1, 2, 3, 4])
+      yield* Effect.promise(() => Bun.write(source, bytes))
+      yield* session.setMetadata({ sessionID, metadata: { mediaConversion: false } })
+
+      const message = yield* session.prompt({
+        sessionID,
+        text: "@small.mp4",
+        files: [{ uri: pathToFileURL(source).href, name: "small.mp4" }],
+        resume: false,
+      })
+
+      expect(message.payload.files).toEqual([
+        {
+          data: bytes.toString("base64"),
+          mime: "video/mp4",
+          source: { type: "uri", uri: pathToFileURL(source).href },
+          name: "small.mp4",
+        },
+      ])
+    }),
+  )
+
   it.live("admits captured image bytes with their source path after the source disappears", () =>
     Effect.gen(function* () {
       yield* setup

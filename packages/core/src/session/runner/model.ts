@@ -78,24 +78,25 @@ const layer = Layer.effect(
     return Service.of({
       resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session, available) {
         // Location plugins populate and filter the catalog asynchronously during layer startup.
-        const override = openRouterConnectionOverride(session)
+        const override = credentialConnectionOverride(session)
         if (!session.model) {
           const agent = (yield* agents.select(session.agent)).info?.model
           const preferred =
             agent &&
             (yield* available()).find((model) => model.providerID === agent.providerID && model.id === agent.id)
           if (preferred) {
-            if (override && preferred.providerID === "openrouter")
-              return yield* resolver.resolveModelWithConnection(preferred, agent.variant, override)
+            if (override) return yield* resolver.resolveModelWithConnection(preferred, agent.variant, override)
             return yield* resolver.resolveModel(preferred, agent.variant)
           }
-          if (override) {
-            const fallback = (yield* available()).find((model) => model.providerID === "openrouter")
-            if (fallback) return yield* resolver.resolveModelWithConnection(fallback, undefined, override)
-          }
           const resolved = yield* resolver.resolve()
-          if (resolved) return resolved
-          return yield* new ModelNotSelectedError({ sessionID: session.id })
+          if (!resolved) return yield* new ModelNotSelectedError({ sessionID: session.id })
+          if (!override) return resolved
+          // A pinned key applies to the default model too, instead of being dropped.
+          const info = (yield* available()).find(
+            (model) => model.providerID === resolved.ref.providerID && model.id === resolved.ref.id,
+          )
+          if (!info) return resolved
+          return yield* resolver.resolveModelWithConnection(info, resolved.ref.variant, override)
         }
         const selected = (yield* available()).find(
           (model) => model.providerID === session.model?.providerID && model.id === session.model.id,
@@ -105,8 +106,7 @@ const layer = Layer.effect(
             providerID: session.model.providerID,
             modelID: session.model.id,
           })
-        if (override && selected.providerID === "openrouter")
-          return yield* resolver.resolveModelWithConnection(selected, session.model.variant, override)
+        if (override) return yield* resolver.resolveModelWithConnection(selected, session.model.variant, override)
         return yield* resolver.resolveModel(selected, session.model.variant)
       }),
     })
@@ -116,12 +116,12 @@ const layer = Layer.effect(
 export const node = makeLocationNode({ service: Service, layer, deps: [ModelResolver.node, Agent.node] })
 
 /**
- * Explicit OpenRouter credential for one session, from its durable metadata.
- * Only stored credential IDs are honored; anything else falls back to the
- * integration's active connection at resolve time.
+ * Explicit credential for one session, from its durable metadata. Only stored
+ * credential IDs are honored; anything else falls back to the integration's
+ * active connection at resolve time.
  */
-function openRouterConnectionOverride(session: SessionSchema.Info): IntegrationConnection.Info | undefined {
-  const raw = session.metadata?.[SessionSchema.OpenRouterCredentialKey]
+function credentialConnectionOverride(session: SessionSchema.Info): IntegrationConnection.Info | undefined {
+  const raw = session.metadata?.[SessionSchema.CredentialKey]
   if (typeof raw !== "string" || !raw.startsWith("cred_")) return undefined
   return {
     type: "credential",

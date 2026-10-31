@@ -19,6 +19,7 @@ import { PluginHooks } from "../plugin/hooks.js"
 import { Skill } from "../skill.js"
 import { SessionBlob } from "./blob.js"
 import { AttachmentError, SkillNotFoundError } from "./error.js"
+import { SessionSchema } from "./schema.js"
 import { SessionStored } from "./stored.js"
 
 // Image types the resizer can decode; others such as HEIC and AVIF go to the provider unchanged.
@@ -54,8 +55,11 @@ export const prepare = Effect.fn("SessionPrompt.prepare")(function* (request: {
     delivery: request.input.delivery ?? "steer",
   })
   const input = event.prompt
+  // A per-chat Raw media pick disables conversion for the chat; anything else
+  // defers to the shared preference inside the conversion service.
+  const convert = request.session.metadata?.[SessionSchema.MediaConversionKey] !== false
   const files = input.files
-    ? yield* Effect.forEach(input.files, materializeAttachment, { concurrency: 8 })
+    ? yield* Effect.forEach(input.files, (file) => materializeAttachment(file, convert), { concurrency: 8 })
     : undefined
   const requested = input.skills
   const selected = yield* Effect.gen(function* () {
@@ -93,6 +97,7 @@ export const prepare = Effect.fn("SessionPrompt.prepare")(function* (request: {
 
 const materializeAttachment = Effect.fn("SessionPrompt.materializeAttachment")(function* (
   input: PromptInput.FileAttachment,
+  convert: boolean,
 ) {
   // Stored blob bytes were normalized when first admitted, so a `media:` ref re-admits them unchanged.
   const ref = Schema.decodeUnknownOption(SessionStored.Ref)(input.uri)
@@ -108,7 +113,7 @@ const materializeAttachment = Effect.fn("SessionPrompt.materializeAttachment")(f
     })
   }
   const label = attachmentLabel(input)
-  const conversion = yield* MediaConversion.Service
+  const conversion = convert ? yield* MediaConversion.Service : undefined
   const resolved = input.uri.startsWith("data:")
     ? {
         bytes: yield* decodeDataURL(input.uri, label),
@@ -174,7 +179,7 @@ const readBlobAttachment = Effect.fn("SessionPrompt.readBlobAttachment")(functio
 
 const readFileAttachment = Effect.fn("SessionPrompt.readFileAttachment")(function* (
   uri: string,
-  conversion: MediaConversion.Interface,
+  conversion: MediaConversion.Interface | undefined,
 ) {
   const fs = yield* FSUtil.Service
   const url = yield* Effect.try({
@@ -219,7 +224,7 @@ const readFileAttachment = Effect.fn("SessionPrompt.readFileAttachment")(functio
   const name = path.basename(target)
   // Media converts before the size gate because the limit applies to the converted output. Text selections and
   // unsupported kinds fall through to the raw file.
-  if (start === undefined && end === undefined) {
+  if (conversion !== undefined && start === undefined && end === undefined) {
     const converted = yield* conversion.convert({
       path: target,
       name,

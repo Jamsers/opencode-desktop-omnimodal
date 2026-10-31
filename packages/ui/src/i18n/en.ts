@@ -189,7 +189,7 @@ const source = {
   "ui.promptInput.chooseAgent": "Choose agent",
   "ui.promptInput.chooseModel": "Choose model",
   "ui.promptInput.chooseVariant": "Choose model variant",
-  "ui.promptInput.chooseOpenRouterKey": "Choose OpenRouter key",
+  "ui.promptInput.chooseApiKey": "Choose API key",
   "ui.promptInput.send": "Send",
   "ui.promptInput.stop": "Stop",
   "ui.promptInput.exitShell": "Exit",

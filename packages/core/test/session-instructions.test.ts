@@ -46,6 +46,7 @@ const readToolNode = makeLocationNode({
     FileAccess.node,
     Image.node,
     Permission.node,
+    Session.node,
     SessionInstructions.node,
     FSUtil.node,
     Location.node,

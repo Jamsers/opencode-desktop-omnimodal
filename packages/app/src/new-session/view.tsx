@@ -18,7 +18,8 @@ import {
 import { Schema } from "effect"
 import { createPresence } from "@/runtime/presence"
 import { Composer } from "@/composer/composer"
-import { OpenRouterKeyControl } from "@/composer/openrouter-key"
+import { ApiKeyControl } from "@/composer/api-key"
+import { MediaConversionSelect } from "@/composer/media-toggle"
 import { ComposerDropzone } from "@/composer/dropzone"
 import type { ComposerModel } from "@/composer/model"
 import {
@@ -120,9 +121,15 @@ export function NewSessionView(props: {
                   <Composer
                     model={props.composer}
                     authControl={
-                      <OpenRouterKeyControl
+                      <ApiKeyControl
                         sessionID={() => undefined}
                         providerID={() => props.composer.model.selection.current()?.provider.id}
+                        directory={() => workspaceLocation().directory}
+                      />
+                    }
+                    mediaControl={
+                      <MediaConversionSelect
+                        sessionID={() => undefined}
                         directory={() => workspaceLocation().directory}
                       />
                     }

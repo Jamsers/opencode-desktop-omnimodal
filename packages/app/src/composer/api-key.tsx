@@ -9,32 +9,32 @@ import { showToast } from "@/shell/notifications/toast"
 import { ComposerEditorConfiguredSelect } from "./editor/editor"
 import type { ComposerSelectControl } from "./editor/interaction"
 
-// Draft OpenRouter keys for not-yet-created chats, keyed by workspace directory. The
+// Draft API keys for not-yet-created chats, keyed by workspace directory. The
 // new-session adapter consumes the entry when it creates the session.
 const [draftKeys, setDraftKeys] = createStore<Record<string, string | undefined>>({})
 
-export function readDraftOpenRouterKey(directory: string | undefined) {
+export function readDraftApiKey(directory: string | undefined) {
   return directory ? draftKeys[directory] : undefined
 }
 
-export function consumeDraftOpenRouterKey(directory: string | undefined) {
-  const key = readDraftOpenRouterKey(directory)
+export function consumeDraftApiKey(directory: string | undefined) {
+  const key = readDraftApiKey(directory)
 
   if (directory) setDraftKeys(directory, undefined)
 
   return key
 }
 
-// Pseudo-ID for an environment-provided key (e.g. OPENROUTER_API_KEY). It is never
+// Pseudo-ID for an environment-provided key (e.g. an *_API_KEY variable). It is never
 // stored: selecting it clears the override back to the active connection.
 const ENV_ID = "__env__"
 
 /**
- * Per-chat OpenRouter key picker. Visible only when the composer targets OpenRouter
- * and there is more than one key to choose from; the active key from Settings is
- * already selected, picking another pins just this chat to it.
+ * Per-chat API key picker. Lists the current provider's saved accounts with the
+ * active key from Settings already selected; picking another pins just this
+ * chat to it. Hidden when the provider has no accounts to choose from.
  */
-export function OpenRouterKeyControl(props: {
+export function ApiKeyControl(props: {
   sessionID: () => string | undefined
   providerID: () => string | undefined
   directory: () => string | undefined
@@ -44,9 +44,11 @@ export function OpenRouterKeyControl(props: {
   const server = useServerSDK()
   const integrations = useIntegrations(() => props.directory())
 
-  const connections = createMemo(
-    () => integrations.list().find((item) => item.id === "openrouter")?.connections ?? [],
-  )
+  const connections = createMemo(() => {
+    const providerID = props.providerID()
+
+    return providerID ? (integrations.list().find((item) => item.id === providerID)?.connections ?? []) : []
+  })
 
   const options = createMemo(() => {
     const [active, ...rest] = connections()
@@ -74,7 +76,7 @@ export function OpenRouterKeyControl(props: {
     const sessionID = props.sessionID()
 
     if (sessionID) {
-      const raw = data.session.get(sessionID)?.metadata?.[Session.OpenRouterCredentialKey]
+      const raw = data.session.get(sessionID)?.metadata?.[Session.CredentialKey]
 
       return typeof raw === "string" && raw !== "" ? raw : undefined
     }
@@ -92,7 +94,7 @@ export function OpenRouterKeyControl(props: {
     return defaultID() ?? options()[0]?.id ?? ""
   }
 
-  const visible = () => props.providerID() === "openrouter" && options().length > 0
+  const visible = () => options().length > 0
 
   const select = (id: string) => {
     // Re-picking the Settings default unpins the chat instead of storing a redundant override.
@@ -109,8 +111,8 @@ export function OpenRouterKeyControl(props: {
 
     const metadata = { ...(data.session.get(sessionID)?.metadata ?? {}) }
 
-    if (value === undefined) delete metadata[Session.OpenRouterCredentialKey]
-    else metadata[Session.OpenRouterCredentialKey] = value
+    if (value === undefined) delete metadata[Session.CredentialKey]
+    else metadata[Session.CredentialKey] = value
 
     void server.api.session
       .update({ sessionID, metadata })
@@ -125,7 +127,7 @@ export function OpenRouterKeyControl(props: {
 
   return (
     <Show when={visible()}>
-      <ComposerEditorConfiguredSelect title={language.t("ui.promptInput.chooseOpenRouterKey")} control={control} />
+      <ComposerEditorConfiguredSelect title={language.t("ui.promptInput.chooseApiKey")} control={control} />
     </Show>
   )
 }

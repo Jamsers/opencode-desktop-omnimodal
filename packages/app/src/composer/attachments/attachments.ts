@@ -6,7 +6,6 @@ import { uuid } from "@opencode/util/uuid"
 import type { ComposerPrompt } from "../types"
 import type { ImageAttachmentPart, PathAttachmentPart } from "../state"
 import type { AttachmentDestination } from "./destination"
-import { mediaConversion } from "./media"
 import { uploads } from "./uploads"
 
 type PromptTarget = {
@@ -22,6 +21,8 @@ export type ComposerAttachmentConfig = {
   ) => Promise<void>
   directory: () => string
   destination: () => AttachmentDestination
+  /** Per-chat conversion switch: the chat's override, else the shared preference. */
+  conversionEnabled: () => boolean
   isDialogActive: () => boolean
   duplicate: () => void
   // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a failed attachment is opaque; the host formats it
@@ -87,7 +88,7 @@ export function createComposerAttachments(
     const mime = await attachmentMime(file)
     const destination = input.destination()
 
-    if (destination.convert && mediaConversion.enabled() && native(mime, destination.input)) {
+    if (destination.convert && input.conversionEnabled() && native(mime, destination.input)) {
       const converted = await convert(file, mime, destination)
 
       // Cancelling the conversion cancels the attach.

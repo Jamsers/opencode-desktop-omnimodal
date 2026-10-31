@@ -8,7 +8,9 @@ import { Effect, Schema } from "effect"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Location } from "../../location.js"
 import { FileAccess } from "../../file-access.js"
+import { Session } from "../../session.js"
 import { SessionInstructions } from "../../session/instructions.js"
+import { SessionSchema } from "../../session/schema.js"
 import { AbsolutePath } from "../../schema.js"
 import { ReadToolFileSystem } from "../read-filesystem.js"
 import { Environment } from "../../environment/index.js"
@@ -32,6 +34,7 @@ export const Plugin = {
   effect: Effect.fn("ReadTool.Plugin")(function* (ctx: Context) {
     const reader = yield* ReadToolFileSystem.Service
     const access = yield* FileAccess.Service
+    const sessions = yield* Session.Service
     const sessionInstructions = yield* SessionInstructions.Service
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
@@ -47,11 +50,22 @@ export const Plugin = {
           output: Output,
           execute: (input, context) => {
             return Effect.gen(function* () {
+              const info = yield* sessions
+                .get(context.sessionID)
+                .pipe(Effect.orElseSucceed(() => undefined))
+              // A per-chat Raw media pick disables conversion; anything else
+              // defers to the shared preference inside the conversion service.
+              const convert = info?.metadata?.[SessionSchema.MediaConversionKey] !== false
               const read = (target: FileAccess.Target) =>
-                reader.read(target.absolute, target.resource, {
-                  offset: input.offset,
-                  limit: input.limit,
-                })
+                reader.read(
+                  target.absolute,
+                  target.resource,
+                  {
+                    offset: input.offset,
+                    limit: input.limit,
+                  },
+                  { convert },
+                )
 
               const requested = yield* access.authorizeRead(input.path, context)
               const result = yield* read(requested).pipe(
