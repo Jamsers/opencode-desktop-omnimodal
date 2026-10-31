@@ -1,11 +1,11 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { CacheHint, LanguageModel, LLM, Media, Message } from "../../src/effect.js"
+import { ai, CacheHint, LanguageModel, Media, Message } from "../../src/effect.js"
 import { LLMClient } from "../../src/route.js"
 import { compileRequest } from "../../src/route/client.js"
 import * as OpenRouter from "../../src/providers/openrouter.js"
 import { it } from "../lib/effect.js"
-import { fixedResponse } from "../lib/http.js"
+import { dynamicResponse, fixedResponse } from "../lib/http.js"
 import { sseEvents } from "../lib/sse.js"
 
 describe("OpenRouter", () => {
@@ -20,7 +20,7 @@ describe("OpenRouter", () => {
       })
       expect(model.route.endpoint.baseURL).toBe("https://openrouter.ai/api/v1")
 
-      const prepared = yield* compileRequest(LLM.request({ model, prompt: "Say hello." }))
+      const prepared = yield* compileRequest(ai.request({ model, prompt: "Say hello." }))
 
       expect(prepared.route).toBe("openrouter")
       expect(prepared.body).toMatchObject({
@@ -36,7 +36,7 @@ describe("OpenRouter", () => {
     Effect.gen(function* () {
       const model = OpenRouter.configure({ apiKey: "test-key" }).model("google/gemini-2.5-flash")
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model,
           messages: [
             Message.user([
@@ -76,7 +76,7 @@ describe("OpenRouter", () => {
   it.effect("places default cache breakpoints on tools, system boundaries, and the conversation tail", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           system: [
             { type: "text", text: "Base agent" },
@@ -112,7 +112,7 @@ describe("OpenRouter", () => {
   it.effect("places default cache breakpoints on OpenRouter latest-model aliases", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("~anthropic/claude-sonnet-latest"),
           system: "Base agent",
           tools: [{ name: "lookup", description: "Lookup", inputSchema: { type: "object", properties: {} } }],
@@ -131,7 +131,7 @@ describe("OpenRouter", () => {
   it.effect("skips the tool breakpoint for Qwen, which caches tools with the system prompt", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("qwen/qwen3-coder-plus"),
           system: "Base agent",
           tools: [{ name: "lookup", description: "Lookup", inputSchema: { type: "object", properties: {} } }],
@@ -150,7 +150,7 @@ describe("OpenRouter", () => {
   it.effect("places the default Qwen conversation-tail breakpoint inside tool-result text", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("qwen/qwen3-coder-plus"),
           messages: [
             Message.user("Call the tool"),
@@ -172,7 +172,7 @@ describe("OpenRouter", () => {
     Effect.gen(function* () {
       const model = OpenRouter.configure({ apiKey: "test-key" }).model("vendor/claude-proxy")
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: LanguageModel.update(model, { compatibility: { cacheFormat: "anthropic" } }),
           system: "Base agent",
           tools: [{ name: "lookup", description: "Lookup", inputSchema: { type: "object", properties: {} } }],
@@ -193,7 +193,7 @@ describe("OpenRouter", () => {
       const openrouter = OpenRouter.configure({ apiKey: "test-key" })
       const bodies = yield* Effect.forEach(["google/gemini-2.5-flash", "openai/gpt-5-mini"], (id) =>
         compileRequest(
-          LLM.request({
+          ai.request({
             model: openrouter.model(id),
             system: "Base agent",
             tools: [{ name: "lookup", description: "Lookup", inputSchema: { type: "object", properties: {} } }],
@@ -215,7 +215,7 @@ describe("OpenRouter", () => {
   it.effect("lowers the native cache policy to OpenRouter cache controls", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           system: [
             { type: "text", text: "Base agent", cache: new CacheHint({ type: "ephemeral", ttl: "1h" }) },
@@ -249,7 +249,7 @@ describe("OpenRouter", () => {
   it.effect("lowers manual assistant and tool-result cache hints", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           cache: "none",
           messages: [
@@ -291,7 +291,7 @@ describe("OpenRouter", () => {
     Effect.gen(function* () {
       const cache = new CacheHint({ type: "ephemeral" })
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           cache: "none",
           system: [1, 2, 3, 4, 5].map((index) => ({ type: "text" as const, text: `System ${index}`, cache })),
@@ -312,7 +312,7 @@ describe("OpenRouter", () => {
   it.effect("does not emit text cache markers on reasoning-only assistant messages", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           cache: { messages: "latest-assistant" },
           messages: [Message.user("Think"), Message.assistant([{ type: "reasoning", text: "Reasoning" }])],
@@ -330,7 +330,7 @@ describe("OpenRouter", () => {
   it.effect("counts wrapped system-update markers once so all four default breakpoints survive", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           system: [
             { type: "text", text: "Base agent" },
@@ -359,7 +359,7 @@ describe("OpenRouter", () => {
   it.effect("allows usage accounting to be disabled explicitly", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({
             apiKey: "test-key",
             providerOptions: { usage: false },
@@ -377,7 +377,7 @@ describe("OpenRouter", () => {
     Effect.gen(function* () {
       const reasoning = (maxTokens: number | undefined, value: Record<string, unknown>) =>
         compileRequest(
-          LLM.request({
+          ai.request({
             model: OpenRouter.configure({ apiKey: "test-key" }).model("qwen/qwen3.8-flash"),
             cache: "none",
             prompt: "Hello",
@@ -397,7 +397,7 @@ describe("OpenRouter", () => {
   it.effect("applies OpenRouter payload options from the model helper", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({
             apiKey: "test-key",
             providerOptions: {
@@ -432,10 +432,50 @@ describe("OpenRouter", () => {
     }),
   )
 
+  it.effect("sends OpenRouter routing options on the Responses route", () =>
+    LLMClient.generate(
+      ai.request({
+        model: OpenRouter.configure({
+          apiKey: "test-key",
+          providerOptions: {
+            models: ["openai/gpt-5.4-mini"],
+            provider: { only: ["openai"], allow_fallbacks: false },
+            plugins: [{ id: "response-healing" }],
+            debug: { echo_upstream_body: true },
+            user: "user_123",
+            reasoningEffort: "low",
+          },
+        }).responses("openai/gpt-5.4"),
+        prompt: "Hello",
+      }),
+    ).pipe(
+      Effect.provide(
+        dynamicResponse((input) =>
+          Effect.sync(() => {
+            expect(input.request.url).toBe("https://openrouter.ai/api/v1/responses")
+            expect(JSON.parse(input.text)).toMatchObject({
+              model: "openai/gpt-5.4",
+              store: false,
+              reasoning: { effort: "low" },
+              models: ["openai/gpt-5.4-mini"],
+              provider: { only: ["openai"], allow_fallbacks: false },
+              plugins: [{ id: "response-healing" }],
+              debug: { echo_upstream_body: true },
+              user: "user_123",
+            })
+            return input.respond(sseEvents({ type: "response.completed", response: { id: "resp_1" } }), {
+              headers: { "content-type": "text/event-stream" },
+            })
+          }),
+        ),
+      ),
+    ),
+  )
+
   it.effect("omits the prompt cache key when caching is disabled", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("openai/gpt-4o-mini"),
           prompt: "Hello",
           promptCacheKey: "session_123",
@@ -462,7 +502,7 @@ describe("OpenRouter", () => {
         future_option: { enabled: true },
       }
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({
             apiKey: "test-key",
             providerOptions: invalid,
@@ -487,7 +527,7 @@ describe("OpenRouter", () => {
   it.effect("preserves the upstream provider finish reason", () =>
     Effect.gen(function* () {
       const model = OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6")
-      const response = yield* LLMClient.generate(LLM.request({ model, prompt: "Say hello." })).pipe(
+      const response = yield* LLMClient.generate(ai.request({ model, prompt: "Say hello." })).pipe(
         Effect.provide(
           fixedResponse(
             sseEvents({
@@ -504,7 +544,7 @@ describe("OpenRouter", () => {
   it.effect("fails on a mid-stream provider error", () =>
     Effect.gen(function* () {
       const model = OpenRouter.configure({ apiKey: "test-key" }).model("openai/gpt-4o-mini")
-      const error = yield* LLMClient.generate(LLM.request({ model, prompt: "Say hello." })).pipe(
+      const error = yield* LLMClient.generate(ai.request({ model, prompt: "Say hello." })).pipe(
         Effect.provide(
           fixedResponse(
             sseEvents({
@@ -529,7 +569,7 @@ describe("OpenRouter", () => {
         { type: "reasoning.encrypted", data: "opaque", format: "openai-responses-v1", index: 1 },
       ]
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           cache: "none",
           messages: [
@@ -565,7 +605,7 @@ describe("OpenRouter", () => {
         { type: "reasoning.encrypted", id: "state", data: "opaque" },
       ]
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           cache: "none",
           messages: [
@@ -606,7 +646,7 @@ describe("OpenRouter", () => {
         { type: "reasoning.text", id: "second", index: 1, text: "B", opaque: "second" },
       ]
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           cache: "none",
           messages: [
@@ -635,7 +675,7 @@ describe("OpenRouter", () => {
   it.effect("omits scalar reasoning without continuation details", () =>
     Effect.gen(function* () {
       const prepared = yield* compileRequest(
-        LLM.request({
+        ai.request({
           model: OpenRouter.configure({ apiKey: "test-key" }).model("anthropic/claude-sonnet-4.6"),
           cache: "none",
           messages: [Message.assistant({ type: "reasoning", text: "Thinking" })],
