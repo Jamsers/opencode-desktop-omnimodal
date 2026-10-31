@@ -25,9 +25,14 @@ export function consumeDraftOpenRouterKey(directory: string | undefined) {
   return key
 }
 
+// Pseudo-ID for an environment-provided key (e.g. OPENROUTER_API_KEY). It is never
+// stored: selecting it clears the override back to the active connection.
+const ENV_ID = "__env__"
+
 /**
- * Per-chat OpenRouter key picker. Visible only when the composer targets OpenRouter;
- * the choice is stored on the session so each chat resolves with its own credential.
+ * Per-chat OpenRouter key picker. Visible only when the composer targets OpenRouter
+ * and there is more than one key to choose from; the active key from Settings is
+ * already selected, picking another pins just this chat to it.
  */
 export function OpenRouterKeyControl(props: {
   sessionID: () => string | undefined
@@ -39,27 +44,59 @@ export function OpenRouterKeyControl(props: {
   const server = useServerSDK()
   const integrations = useIntegrations(() => props.directory())
 
-  const accounts = createMemo(() =>
-    (integrations.list().find((item) => item.id === "openrouter")?.connections ?? []).filter(
-      (connection) => connection.type === "credential",
-    ),
+  const connections = createMemo(
+    () => integrations.list().find((item) => item.id === "openrouter")?.connections ?? [],
   )
 
-  const stored = createMemo(() => {
-    const sessionID = props.sessionID()
+  const options = createMemo(() => {
+    const [active, ...rest] = connections()
+    const accounts = (active?.type === "credential" ? [active, ...rest] : rest).filter(
+      (connection) => connection.type === "credential",
+    )
 
-    if (!sessionID) return undefined
-    const raw = data.session.get(sessionID)?.metadata?.[Session.OpenRouterCredentialKey]
-
-    return typeof raw === "string" && raw !== "" ? raw : undefined
+    return [
+      ...(active?.type === "env" ? [{ id: ENV_ID, label: `$${active.name}` }] : []),
+      ...accounts.map((account) => ({ id: account.id, label: account.label })),
+    ]
   })
 
-  const current = () => stored() ?? readDraftOpenRouterKey(props.directory()) ?? "default"
+  // The Settings default: the active connection, or the first account when nothing is active.
+  const defaultID = createMemo(() => {
+    const active = connections()[0]
 
-  const visible = () => props.providerID() === "openrouter" && (accounts().length > 0 || current() !== "default")
+    if (active?.type === "credential") return active.id
+    if (active?.type === "env") return ENV_ID
+
+    return options()[0]?.id
+  })
+
+  const override = createMemo(() => {
+    const sessionID = props.sessionID()
+
+    if (sessionID) {
+      const raw = data.session.get(sessionID)?.metadata?.[Session.OpenRouterCredentialKey]
+
+      return typeof raw === "string" && raw !== "" ? raw : undefined
+    }
+
+    const directory = props.directory()
+
+    return directory ? draftKeys[directory] : undefined
+  })
+
+  const current = () => {
+    const pinned = override()
+
+    if (pinned && options().some((option) => option.id === pinned)) return pinned
+
+    return defaultID() ?? options()[0]?.id ?? ENV_ID
+  }
+
+  const visible = () => props.providerID() === "openrouter" && options().length > 1
 
   const select = (id: string) => {
-    const value = id === "default" ? undefined : id
+    // Re-picking the Settings default unpins the chat instead of storing a redundant override.
+    const value = id === defaultID() ? undefined : id
     const sessionID = props.sessionID()
 
     if (!sessionID) {
@@ -81,10 +118,7 @@ export function OpenRouterKeyControl(props: {
   }
 
   const control: ComposerSelectControl = {
-    options: () => [
-      { id: "default", label: language.t("ui.promptInput.openRouterKeyDefault") },
-      ...accounts().map((account) => ({ id: account.id, label: account.label })),
-    ],
+    options,
     current,
     onSelect: select,
   }

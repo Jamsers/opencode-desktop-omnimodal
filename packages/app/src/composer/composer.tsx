@@ -7,7 +7,7 @@ import { Keybind } from "@opencode/ui/keybind"
 import { Slash } from "@opencode/ui/slash"
 import { Tooltip } from "@opencode/ui/tooltip"
 import { ComposerEditor } from "./editor/editor"
-import { MediaConversionToggle } from "./media-toggle"
+import { MediaConversionSelect } from "./media-toggle"
 import { DialogSelectModel, ModelSelectorDrawer } from "@/providers/models/select-dialog"
 import { DialogSelectModelUnpaid } from "@/providers/models/unpaid"
 import { formatKeybind, useCommand } from "@/shell/commands/command"
@@ -59,7 +59,7 @@ export function Composer(props: {
         readOnly={props.readOnly}
         class={props.class}
         modelControlsVisible={!props.model.model.loading || !!props.model.model.preview}
-        mediaControl={<MediaConversionToggle />}
+        mediaControl={<MediaConversionSelect />}
         attachKeybind={command.keybindParts("file.attach")}
         attachShortcut={command.keybind("file.attach")}
         alternateKeybind={[formatKeybind("mod", language.t), "↵"]}
