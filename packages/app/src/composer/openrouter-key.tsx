@@ -89,10 +89,10 @@ export function OpenRouterKeyControl(props: {
 
     if (pinned && options().some((option) => option.id === pinned)) return pinned
 
-    return defaultID() ?? options()[0]?.id ?? ENV_ID
+    return defaultID() ?? options()[0]?.id ?? ""
   }
 
-  const visible = () => props.providerID() === "openrouter" && options().length > 1
+  const visible = () => props.providerID() === "openrouter" && options().length > 0
 
   const select = (id: string) => {
     // Re-picking the Settings default unpins the chat instead of storing a redundant override.

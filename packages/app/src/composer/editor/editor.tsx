@@ -446,11 +446,11 @@ export function ComposerEditor(props: ComposerEditorProps) {
                   )}
                 </Show>
                 {props.authControl}
+                {props.mediaControl}
               </Show>
             </div>
           </div>
           <div data-slot="composer-actions" class="flex shrink-0 items-center">
-            <Show when={state.mode === "normal"}>{props.mediaControl}</Show>
             <Show when={state.mode === "normal"}>
               <ComposerEditorAlternateDelivery
                 controller={props.controller}
