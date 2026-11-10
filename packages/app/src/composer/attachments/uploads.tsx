@@ -1,4 +1,4 @@
-<import { createEffect, createRoot, createSignal, For, on, onCleanup, Show, untrack } from "solid-js"
+import { createEffect, createRoot, createSignal, For, on, onCleanup, Show, untrack } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { Icon } from "@opencode/ui/icon"
 import { Spinner } from "@opencode/ui/spinner"
@@ -88,7 +88,6 @@ function run(effect: UploadMachineEffect) {
 
     return
   }
->>>>>>> v2.2.6
 
   const current = runs.get(attempt)
 

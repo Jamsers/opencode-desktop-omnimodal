@@ -5,6 +5,7 @@ import { uuid } from "@opencode/util/uuid"
 import type { ComposerPrompt } from "../types"
 import type { ImageAttachmentPart, PathAttachmentPart } from "../state"
 import type { AttachmentDestination } from "./destination"
+import type { MediaConversionResult } from "@/runtime/platform/platform"
 import { uploads } from "./uploads"
 import type { UploadScope } from "./upload-machine"
 
@@ -66,29 +67,31 @@ export function createComposerAttachments(
   // Media the model reads natively travels inline with the prompt, so its bytes live in the draft
   // store. Everything else, including text, reaches the model as a path on the server that its
   // tools open; those bytes never enter the store, and never get base64-encoded into the request.
+  // The upload machine resolves every run to a path, so the conversion rides along as the work's
+  // return value and the full result is captured beside it; cancellation still resolves undefined.
   const convert = async (
     file: File,
     mime: string,
     destination: AttachmentDestination,
     scope: UploadScope,
-  ) => {
-    const id = uuid()
-    setPending("ids", (ids) => [...ids, id])
+  ): Promise<MediaConversionResult | null | undefined> => {
+    let result: MediaConversionResult | null = null
+    let failed = false
 
-    try {
-      return await uploads
-        .track(
-          { id, scope, filename: file.name, mime, size: file.size, phase: "converting" },
-          (_, signal) => destination.convert!(file, mime, signal),
-        )
-        .catch((error: unknown) => {
-          input.onError(error)
+    const path = await uploads
+      .track({ id: uuid(), scope, filename: file.name, mime, size: file.size, phase: "converting" }, async (_, signal) => {
+        result = await destination.convert!(file, mime, signal)
 
-          return null
-        })
-    } finally {
-      setPending("ids", (ids) => ids.filter((item) => item !== id))
-    }
+        return result?.path ?? ""
+      })
+      .catch((error: unknown) => {
+        failed = true
+        input.onError(error)
+
+        return undefined
+      })
+
+    return failed || path === undefined ? (failed ? null : undefined) : result
   }
 
   const add = async (file: File, target = capture(), clipboard = false) => {

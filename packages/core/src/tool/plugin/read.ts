@@ -8,7 +8,7 @@ import { Effect, Schema } from "effect"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Location } from "../../location.js"
 import { FileAccess } from "../../file-access.js"
-<import { Session } from "../../session.js"
+import { Session } from "../../session.js"
 import { Permission } from "../../permission.js"
 import { SessionInstructions } from "../../session/instructions.js"
 import { SessionSchema } from "../../session/schema.js"
@@ -37,7 +37,7 @@ export const Plugin = {
   effect: Effect.fn("ReadTool.Plugin")(function* (ctx: Context) {
     const reader = yield* ReadToolFileSystem.Service
     const access = yield* FileAccess.Service
-<    const sessions = yield* Session.Service
+    const sessions = yield* Session.Service
     const permission = yield* Permission.Service
     const skills = yield* Skill.Service
     const sessionInstructions = yield* SessionInstructions.Service
@@ -55,7 +55,7 @@ export const Plugin = {
           output: Output,
           execute: (input, context) => {
             return Effect.gen(function* () {
-<              const info = yield* sessions
+              const info = yield* sessions
                 .get(context.sessionID)
                 .pipe(Effect.orElseSucceed(() => undefined))
               // A per-chat Raw media pick disables conversion; anything else

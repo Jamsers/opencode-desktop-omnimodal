@@ -12,7 +12,7 @@ import { Mime } from "../mime.js"
 import { Permission } from "../permission.js"
 import { Tool } from "../tool.js"
 import { ToolOutput } from "../tool-output.js"
-<import { effectiveName, normalizedName } from "./runtime.js"
+import { effectiveName, normalizedName } from "./runtime.js"
 
 const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
 

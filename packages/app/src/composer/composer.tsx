@@ -1,4 +1,4 @@
-<import { Show, createEffect, createMemo, createSignal, onCleanup, untrack, type JSX } from "solid-js"
+import { Show, createEffect, createMemo, createSignal, onCleanup, untrack, type JSX } from "solid-js"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Button } from "@opencode/ui/button"

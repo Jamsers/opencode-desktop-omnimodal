@@ -8,7 +8,7 @@ import {
   isContextOverflowFailure,
   LLMClient,
   LLMEvent,
-<  type LLMRequest,
+  type LLMRequest,
   Media,
   Message,
   type ToolEntry,
@@ -151,7 +151,7 @@ const TRANSCRIPT_LEVELS = [0, OUTPUTS_CLIPPED, OUTPUTS_REMOVED, USER_ONLY, OMITT
 const TRANSCRIPT_CLIP = 2_000
 const IMAGE_TOKEN_ESTIMATE = 1_500
 const PDF_TOKEN_ESTIMATE = 2_000
-<// Audio, video, and office documents have no flat size: their cost scales with the duration or extracted text that
+// Audio, video, and office documents have no flat size: their cost scales with the duration or extracted text that
 // payload bytes stand in for. Estimates round up on purpose — one that runs low hides the overflow from `due` and
 // from the overflow rebuild's shrink budget, and oversized media requests then fail without compaction.
 const AUDIO_BYTES_PER_TOKEN = 500

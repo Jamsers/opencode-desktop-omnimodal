@@ -26,7 +26,7 @@ import {
   type UserMessage,
 } from "../schema/index.js"
 import { classifyProviderFailure } from "../provider-error.js"
-<import { JsonObject, optionalArray, optionalNull, ProviderShared } from "./shared.js"
+import { JsonObject, optionalArray, optionalNull, ProviderShared } from "./shared.js"
 import { isDocumentMediaType, mediaTypeExtension } from "../utils/media-type.js"
 import { placesMarkers, requestTTL } from "../cache-policy.js"
 import * as Cache from "./utils/cache.js"

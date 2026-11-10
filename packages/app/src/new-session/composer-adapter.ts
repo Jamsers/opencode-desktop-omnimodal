@@ -131,7 +131,7 @@ export function createNewSessionComposerAdapter(props: {
             { message, selection, view: props.start.view },
           )
 
-<          // Drafts picked before the chat exists ride along as session metadata so
+          // Drafts picked before the chat exists ride along as session metadata so
           // the first turn already honors them. They join the creation gate,
           // so no prompt can drain before the metadata lands.
           const currentDirectory = location().directory

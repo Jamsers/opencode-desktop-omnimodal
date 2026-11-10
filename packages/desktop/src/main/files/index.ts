@@ -36,7 +36,7 @@ export const layer = Layer.effect(
   }),
 )
 
-<// A renderer that reloads or closes drops its picked files: the next document never asked for them.
+// A renderer that reloads or closes drops its picked files: the next document never asked for them.
 function watchRenderer(sender: number, clear: () => void) {
   const contents = webContents.fromId(sender)
 
@@ -66,7 +66,7 @@ function make(
   pickedFiles: ReturnType<typeof createPickedFileAuthorizations>,
 ) {
   // Conversions outlive a single RPC call so the renderer can cancel an in-flight encode.
-  const conversions = new Map<string, AbortController__()
+  const conversions = new Map<string, AbortController>()
 
   return {
     openDirectoryPicker: Effect.fn("DesktopFiles.openDirectoryPicker")(function* (options?: DirectoryPickerOptions) {

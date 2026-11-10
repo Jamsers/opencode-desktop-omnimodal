@@ -161,7 +161,7 @@ export const read = Effect.fn("ReadTool.read")(function* (
     const whole = yield* readFile(files, input, resource)
     return {
       type: "file" as const,
-<      uri: virtual ? resource : pathToFileURL(input).href,
+      uri: virtual ? resource : pathToFileURL(input).href,
       name: virtual ? path.posix.basename(input) : name,
       content: Buffer.from(whole.bytes).toString("base64"),
       encoding: "base64" as const,
