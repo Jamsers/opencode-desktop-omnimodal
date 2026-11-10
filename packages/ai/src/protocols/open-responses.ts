@@ -29,6 +29,7 @@ import {
 } from "./shared.js"
 import { classifyProviderFailure } from "../provider-error.js"
 import { effortUpdate } from "../effort-updates.js"
+import { mediaTypeExtension, isDocumentMediaType } from "../utils/media-type.js"
 import { OpenResponsesOptions } from "./utils/open-responses-options.js"
 import { Lifecycle } from "./utils/lifecycle.js"
 import { ToolStream } from "./utils/tool-stream.js"
@@ -593,7 +594,7 @@ const lowerMedia = Effect.fnUntraced(function* (part: MediaPart, request: LLMReq
     if (url) return { type: "input_file" as const, file_url: url, detail }
     return {
       type: "input_file" as const,
-      filename: part.filename ?? (mime === "application/pdf" ? "document.pdf" : "file"),
+      filename: part.filename ?? (isDocumentMediaType(mime) ? `document.${mediaTypeExtension(mime) ?? "pdf"}` : "file"),
       detail,
       file_data: location,
     }

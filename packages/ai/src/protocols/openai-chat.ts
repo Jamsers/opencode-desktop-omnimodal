@@ -466,6 +466,9 @@ const AUDIO_FORMATS: Readonly<Record<string, string>> = {
   "audio/wave": "wav",
   "audio/aac": "aac",
   "audio/ogg": "ogg",
+  "audio/oga": "ogg",
+  "audio/opus": "opus",
+  "audio/x-opus": "opus",
   "audio/flac": "flac",
   "audio/x-flac": "flac",
   "audio/mp4": "m4a",
@@ -473,6 +476,11 @@ const AUDIO_FORMATS: Readonly<Record<string, string>> = {
   "audio/x-m4a": "m4a",
   "audio/aiff": "aiff",
   "audio/x-aiff": "aiff",
+  "audio/webm": "webm",
+  "audio/pcm16": "pcm16",
+  "audio/pcm24": "pcm24",
+  "audio/pcm": "pcm16",
+  "audio/l16": "pcm16",
 }
 
 const lowerMedia = Effect.fnUntraced(function* (part: MediaPart, options: LoweringOptions) {

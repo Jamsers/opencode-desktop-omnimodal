@@ -4,7 +4,18 @@ import { FileNotFoundError } from "@opencode/protocol/errors"
 import { Effect } from "effect"
 import { type HttpServerRequest, HttpServerResponse } from "effect/http"
 
-const INLINE_IMAGE_MIMES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
+const INLINE_IMAGE_MIMES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+  "image/bmp",
+  "image/tiff",
+  "image/svg+xml",
+])
 const CACHE_CONTROL = "private, max-age=31536000, immutable"
 const SECURITY_HEADERS = {
   "x-content-type-options": "nosniff",

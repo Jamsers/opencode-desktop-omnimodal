@@ -3,7 +3,18 @@ export * as Mime from "./mime.js"
 import { detectMediaType, isDocumentMediaType } from "@opencode/ai/utils/media-type"
 import { lookup } from "mime-types"
 
-const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
+const imageMimes = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+  "image/bmp",
+  "image/tiff",
+  "image/svg+xml",
+])
 
 export function detect(bytes: Uint8Array) {
   const detected = detectMediaType(bytes)

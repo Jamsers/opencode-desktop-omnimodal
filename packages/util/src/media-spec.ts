@@ -21,7 +21,18 @@ export const VIDEO_FPS = 4
 export const VIDEO_CRF = 32
 export const VIDEO_PRESET = "slow"
 
-const IMAGE_MIMES = new Set(["image/gif", "image/jpeg", "image/png", "image/webp"])
+const IMAGE_MIMES = new Set([
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+  "image/bmp",
+  "image/tiff",
+  "image/svg+xml",
+])
 
 export function kindOf(mime: string): MediaKind | undefined {
   const type = mime.toLowerCase().split(";")[0]?.trim() ?? ""
