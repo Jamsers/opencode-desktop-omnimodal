@@ -8,10 +8,13 @@ import { Effect, Schema } from "effect"
 import { FSUtil } from "@opencode/util/fs-util"
 import { Location } from "../../location.js"
 import { FileAccess } from "../../file-access.js"
-import { Session } from "../../session.js"
+<import { Session } from "../../session.js"
+import { Permission } from "../../permission.js"
 import { SessionInstructions } from "../../session/instructions.js"
 import { SessionSchema } from "../../session/schema.js"
 import { AbsolutePath } from "../../schema.js"
+import { Skill } from "../../skill.js"
+import { SkillDiscovery } from "../../skill/discovery.js"
 import { ReadToolFileSystem } from "../read-filesystem.js"
 import { Environment } from "../../environment/index.js"
 
@@ -34,7 +37,9 @@ export const Plugin = {
   effect: Effect.fn("ReadTool.Plugin")(function* (ctx: Context) {
     const reader = yield* ReadToolFileSystem.Service
     const access = yield* FileAccess.Service
-    const sessions = yield* Session.Service
+<    const sessions = yield* Session.Service
+    const permission = yield* Permission.Service
+    const skills = yield* Skill.Service
     const sessionInstructions = yield* SessionInstructions.Service
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
@@ -50,12 +55,53 @@ export const Plugin = {
           output: Output,
           execute: (input, context) => {
             return Effect.gen(function* () {
-              const info = yield* sessions
+<              const info = yield* sessions
                 .get(context.sessionID)
                 .pipe(Effect.orElseSucceed(() => undefined))
               // A per-chat Raw media pick disables conversion; anything else
               // defers to the shared preference inside the conversion service.
               const convert = info?.metadata?.[SessionSchema.MediaConversionKey] !== false
+
+              if (Skill.isUri(input.path)) {
+                const parsed = parseSkillUri(input.path)
+                if (!parsed) return yield* new ToolFailure({ message: `File not found: ${input.path}` })
+                const id = Skill.ID.make(parsed.id)
+                const skill = yield* skills.get(id)
+                if (!skill || !Skill.isUri(skill.path))
+                  return yield* new ToolFailure({ message: `File not found: ${input.path}` })
+                const extra = yield* skills.files(id)
+                yield* permission.assert({
+                  action: "skill",
+                  resources: [skill.id],
+                  save: [skill.id],
+                  ...Permission.invocation(context),
+                })
+                yield* permission.assert({
+                  action: "read",
+                  resources: [parsed.uri],
+                  save: ["*"],
+                  ...Permission.invocation(context),
+                })
+                const virtualFs = Environment.makeFiles(Environment.makeMemoryDriver())
+                const encoder = new TextEncoder()
+                yield* virtualFs.write(AbsolutePath.make("/SKILL.md"), encoder.encode(skill.content))
+                yield* Effect.forEach(
+                  extra ? Array.from(extra) : [],
+                  ([rel, text]) => virtualFs.write(AbsolutePath.make(`/${rel}`), encoder.encode(text)),
+                  { discard: true },
+                )
+                const output = yield* ReadToolFileSystem.read(virtualFs, AbsolutePath.make(parsed.target), input.path, {
+                  offset: input.offset,
+                  limit: input.limit,
+                }).pipe(
+                  Effect.catchIf(
+                    (error) => error instanceof Environment.NotFound,
+                    () => Effect.fail(new ToolFailure({ message: `File not found: ${input.path}` })),
+                  ),
+                )
+                return { output, path: input.path }
+              }
+
               const read = (target: FileAccess.Target) =>
                 reader.read(
                   target.absolute,
@@ -212,6 +258,17 @@ export const Plugin = {
       return yield* new ToolFailure({ message })
     })
   }),
+}
+
+function parseSkillUri(value: string) {
+  const trimmed = value.slice("skill://".length).replace(/\/+$/, "")
+  const slash = trimmed.indexOf("/")
+  const id = slash === -1 ? trimmed : trimmed.slice(0, slash)
+  const rest = slash === -1 ? "" : trimmed.slice(slash + 1)
+  if (!SkillDiscovery.isSafeSegment(id)) return undefined
+  if (rest !== "" && !rest.split("/").every(SkillDiscovery.isSafeSegment)) return undefined
+  // Permission checks use the canonical URI, so `skill://id/file/` can't slip past a rule for `skill://id/file`.
+  return { id, target: rest === "" ? "/" : `/${rest}`, uri: Skill.uri(id, rest || undefined) }
 }
 
 export const toModelContent = (path: string, offset: number | undefined, output: typeof Output.Type) => {

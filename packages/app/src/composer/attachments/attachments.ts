@@ -1,5 +1,4 @@
 import { onCleanup, onMount } from "solid-js"
-import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createBlobReference } from "@/runtime/persistence/drafts"
 import { uuid } from "@opencode/util/uuid"
@@ -7,8 +6,11 @@ import type { ComposerPrompt } from "../types"
 import type { ImageAttachmentPart, PathAttachmentPart } from "../state"
 import type { AttachmentDestination } from "./destination"
 import { uploads } from "./uploads"
+import type { UploadScope } from "./upload-machine"
 
 type PromptTarget = {
+  /** The draft the prompt belongs to, which owns uploads started for it across composer remounts. */
+  scope?: object
   current: () => ComposerPrompt
   cursor: () => number | undefined
   set: (prompt: ComposerPrompt, cursor?: number) => void
@@ -57,20 +59,26 @@ export function createComposerAttachments(
     return { prompt, cursor: prompt.cursor() ?? cursorPosition(editor) }
   }
 
-  // Uploads this composer started; they finish (or fail) even if the composer unmounts.
-  const [pending, setPending] = createStore<{ ids: string[] }>({ ids: [] })
+  // A composer without a draft scope owns its uploads itself.
+  const fallbackScope = {}
+  const scopeOf = (prompt = input.capture()) => prompt.scope ?? fallbackScope
 
   // Media the model reads natively travels inline with the prompt, so its bytes live in the draft
   // store. Everything else, including text, reaches the model as a path on the server that its
   // tools open; those bytes never enter the store, and never get base64-encoded into the request.
-  const convert = async (file: File, mime: string, destination: AttachmentDestination) => {
+  const convert = async (
+    file: File,
+    mime: string,
+    destination: AttachmentDestination,
+    scope: UploadScope,
+  ) => {
     const id = uuid()
     setPending("ids", (ids) => [...ids, id])
 
     try {
       return await uploads
         .track(
-          { id, filename: file.name, mime, size: file.size, phase: "converting" },
+          { id, scope, filename: file.name, mime, size: file.size, phase: "converting" },
           (_, signal) => destination.convert!(file, mime, signal),
         )
         .catch((error: unknown) => {
@@ -89,7 +97,7 @@ export function createComposerAttachments(
     const destination = input.destination()
 
     if (destination.convert && input.conversionEnabled() && native(mime, destination.input)) {
-      const converted = await convert(file, mime, destination)
+      const converted = await convert(file, mime, destination, scopeOf(target.prompt))
 
       // Cancelling the conversion cancels the attach.
       if (converted === undefined) return false
@@ -167,19 +175,16 @@ export function createComposerAttachments(
     target: NonNullable<ReturnType<typeof capture>>,
     destination: AttachmentDestination,
   ) => {
-    const id = uuid()
-    setPending("ids", (ids) => [...ids, id])
-
     const path = await uploads
-      .track({ id, filename: file.name, mime, size: file.size }, (report, signal) =>
-        destination.upload(file, report, signal),
+      .track(
+        { id: uuid(), scope: scopeOf(target.prompt), filename: file.name, mime, size: file.size },
+        (report, signal) => destination.upload(file, report, signal),
       )
       .catch((error) => {
         input.onUploadError(error)
 
         return undefined
       })
-      .finally(() => setPending("ids", (ids) => ids.filter((item) => item !== id)))
 
     if (path) addPath(target, { filename: file.name, mime, path })
   }
@@ -277,9 +282,7 @@ export function createComposerAttachments(
     makeEventListener(document, "dragover", (event) => {
       if (input.isDialogActive()) return
       event.preventDefault()
-
-      if (event.dataTransfer?.types.includes("Files")) input.setDraggingType("image")
-      else if (event.dataTransfer?.types.includes("text/plain")) input.setDraggingType("@mention")
+      input.setDraggingType(dragType(event.dataTransfer))
     })
     makeEventListener(document, "dragleave", (event) => {
       if (!input.isDialogActive() && !event.relatedTarget) clearDrag()
@@ -295,10 +298,8 @@ export function createComposerAttachments(
     handlePaste,
     handleDrop,
     /** Uploads still in flight for this composer; sending waits for them. */
-    pending: () => uploads.items().filter((item) => pending.ids.includes(item.id)),
-    cancel(id: string) {
-      uploads.items().find((item) => item.id === id)?.cancel()
-    },
+    pending: () => uploads.forScope(scopeOf()),
+    cancel: (id: string) => uploads.cancel(id),
     pick(fallback: () => void, done: () => void) {
       if (!input.picker) {
         fallback()
@@ -312,6 +313,16 @@ export function createComposerAttachments(
         .catch(input.onError)
     },
   }
+}
+
+// Files from the system and file rows from the workspace tree (which also carry a file URL) drop as attachments.
+// A text selection carries neither, so dragging it shows no dropzone.
+function dragType(data: DataTransfer | null) {
+  if (data?.types.includes("Files")) return "image"
+
+  if (data?.types.includes("text/uri-list")) return "@mention"
+
+  return null
 }
 
 const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
