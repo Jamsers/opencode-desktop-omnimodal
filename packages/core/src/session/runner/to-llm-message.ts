@@ -16,18 +16,7 @@ import { SessionRecentText } from "../recent-text.js"
 import { Mime } from "../../mime.js"
 import type { FileAttachment } from "@opencode/schema/prompt"
 
-const imageMimes = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "image/heic",
-  "image/heif",
-  "image/bmp",
-  "image/tiff",
-  "image/svg+xml",
-])
+const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
 
 const media = (file: FileAttachment): ContentPart => ({
   type: "media",

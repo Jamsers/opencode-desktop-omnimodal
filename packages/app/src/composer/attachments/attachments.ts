@@ -314,31 +314,13 @@ export function createComposerAttachments(
   }
 }
 
-const imageMimes = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "image/heic",
-  "image/heif",
-  "image/bmp",
-  "image/tiff",
-  "image/svg+xml",
-])
+const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
 
 const documentMimes = new Set([
   "application/pdf",
-  "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.oasis.opendocument.text",
-  "application/vnd.oasis.opendocument.spreadsheet",
-  "application/vnd.oasis.opendocument.presentation",
-  "application/rtf",
 ])
 
 // The server rejects inline attachments above this size, so larger media takes the path route.
@@ -367,30 +349,14 @@ const mediaExtensions = new Map([
   ["jpg", "image/jpeg"],
   ["png", "image/png"],
   ["webp", "image/webp"],
-  ["avif", "image/avif"],
-  ["heic", "image/heic"],
-  ["heif", "image/heif"],
-  ["bmp", "image/bmp"],
-  ["tif", "image/tiff"],
-  ["tiff", "image/tiff"],
-  ["svg", "image/svg+xml"],
   ["pdf", "application/pdf"],
-  ["doc", "application/msword"],
   ["docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-  ["xls", "application/vnd.ms-excel"],
   ["xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-  ["ppt", "application/vnd.ms-powerpoint"],
   ["pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
-  ["odt", "application/vnd.oasis.opendocument.text"],
-  ["ods", "application/vnd.oasis.opendocument.spreadsheet"],
-  ["odp", "application/vnd.oasis.opendocument.presentation"],
-  ["rtf", "application/rtf"],
   ["mp3", "audio/mpeg"],
   ["m4a", "audio/mp4"],
   ["wav", "audio/wav"],
   ["ogg", "audio/ogg"],
-  ["oga", "audio/ogg"],
-  ["opus", "audio/opus"],
   ["flac", "audio/flac"],
   ["aac", "audio/aac"],
   ["aiff", "audio/aiff"],

@@ -44,12 +44,6 @@ export const detectMediaType = (bytes: Uint8Array): string | undefined => {
     return (bytes[1] & 0x06) === 0 ? "audio/aac" : "audio/mpeg"
   if (startsWith(bytes, [0x4f, 0x67, 0x67, 0x53])) return "audio/ogg"
   if (startsWith(bytes, [0x66, 0x4c, 0x61, 0x43])) return "audio/flac"
-  if (startsWith(bytes, [0x42, 0x4d])) return "image/bmp"
-  if (
-    (startsWith(bytes, [0x49, 0x49, 0x2a, 0x00]) || startsWith(bytes, [0x4d, 0x4d, 0x00, 0x2a])) &&
-    bytes.length > 4
-  )
-    return "image/tiff"
   return undefined
 }
 
@@ -62,21 +56,10 @@ const EXTENSIONS: Readonly<Record<string, string>> = {
   avif: "image/avif",
   heic: "image/heic",
   heif: "image/heif",
-  bmp: "image/bmp",
-  tif: "image/tiff",
-  tiff: "image/tiff",
-  svg: "image/svg+xml",
   pdf: "application/pdf",
-  doc: "application/msword",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xls: "application/vnd.ms-excel",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ppt: "application/vnd.ms-powerpoint",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  odt: "application/vnd.oasis.opendocument.text",
-  ods: "application/vnd.oasis.opendocument.spreadsheet",
-  odp: "application/vnd.oasis.opendocument.presentation",
-  rtf: "application/rtf",
   mp4: "video/mp4",
   mov: "video/quicktime",
   webm: "video/webm",
@@ -84,8 +67,6 @@ const EXTENSIONS: Readonly<Record<string, string>> = {
   m4a: "audio/mp4",
   wav: "audio/wav",
   ogg: "audio/ogg",
-  oga: "audio/ogg",
-  opus: "audio/opus",
   flac: "audio/flac",
   aac: "audio/aac",
   txt: "text/plain",
@@ -116,16 +97,9 @@ export const mediaTypeExtension = (mediaType: string): string | undefined => {
 
 const DOCUMENT_MEDIA_TYPES: ReadonlySet<string> = new Set([
   "application/pdf",
-  "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.oasis.opendocument.text",
-  "application/vnd.oasis.opendocument.spreadsheet",
-  "application/vnd.oasis.opendocument.presentation",
-  "application/rtf",
 ])
 
 /** PDFs and office documents: the `file` content part's domain. */
