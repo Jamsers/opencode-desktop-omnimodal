@@ -193,6 +193,8 @@ const source = {
   "ui.promptInput.chooseModel": "Choose model",
   "ui.promptInput.chooseVariant": "Choose model variant",
   "ui.promptInput.chooseApiKey": "Choose API key",
+  "ui.promptInput.apiKey.default": "Default",
+  "ui.promptInput.apiKey.unnamed": "Key",
   "ui.promptInput.send": "Send",
   "ui.promptInput.stop": "Stop",
   "ui.promptInput.exitShell": "Exit",

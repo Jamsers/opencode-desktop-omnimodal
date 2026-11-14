@@ -1,6 +1,6 @@
 import { Session } from "@opencode/schema/session"
 import { useI18n } from "@opencode/ui/context/i18n"
-import { Show, createMemo } from "solid-js"
+import { createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useIntegrations } from "@/providers/catalog/integrations"
 import { useData } from "@/runtime/server/current"
@@ -25,14 +25,15 @@ export function consumeDraftApiKey(directory: string | undefined) {
   return key
 }
 
-// Pseudo-ID for an environment-provided key (e.g. an *_API_KEY variable). It is never
-// stored: selecting it clears the override back to the active connection.
+// Pseudo-ID for "follow whatever Settings says" and for an environment-provided key (e.g. an
+// *_API_KEY variable). Neither is ever stored: selecting one clears the override back to the
+// active connection.
+const DEFAULT_ID = "__default__"
 const ENV_ID = "__env__"
 
 /**
- * Per-chat API key picker. Lists the current provider's saved accounts with the
- * active key from Settings already selected; picking another pins just this
- * chat to it. Hidden when the provider has no accounts to choose from.
+ * Per-chat API key picker. The menu is always visible; its first entry reads "Default" and means
+ * the chat follows the active Settings key. Picking any saved account pins just that chat to it.
  */
 export function ApiKeyControl(props: {
   sessionID: () => string | undefined
@@ -57,19 +58,13 @@ export function ApiKeyControl(props: {
     )
 
     return [
+      { id: DEFAULT_ID, label: language.t("ui.promptInput.apiKey.default") },
       ...(active?.type === "env" ? [{ id: ENV_ID, label: `$${active.name}` }] : []),
-      ...accounts.map((account) => ({ id: account.id, label: account.label })),
+      ...accounts.map((account) => ({
+        id: account.id,
+        label: account.label || language.t("ui.promptInput.apiKey.unnamed"),
+      })),
     ]
-  })
-
-  // The Settings default: the active connection, or the first account when nothing is active.
-  const defaultID = createMemo(() => {
-    const active = connections()[0]
-
-    if (active?.type === "credential") return active.id
-    if (active?.type === "env") return ENV_ID
-
-    return options()[0]?.id
   })
 
   const override = createMemo(() => {
@@ -91,14 +86,12 @@ export function ApiKeyControl(props: {
 
     if (pinned && options().some((option) => option.id === pinned)) return pinned
 
-    return defaultID() ?? options()[0]?.id ?? ""
+    return DEFAULT_ID
   }
 
-  const visible = () => options().length > 0
-
   const select = (id: string) => {
-    // Re-picking the Settings default unpins the chat instead of storing a redundant override.
-    const value = id === defaultID() ? undefined : id
+    // Default and the active env value both mean "follow Settings", so pinning nothing.
+    const value = id === DEFAULT_ID || id === ENV_ID ? undefined : id
     const sessionID = props.sessionID()
 
     if (!sessionID) {
@@ -126,8 +119,6 @@ export function ApiKeyControl(props: {
   }
 
   return (
-    <Show when={visible()}>
-      <ComposerEditorConfiguredSelect title={language.t("ui.promptInput.chooseApiKey")} control={control} />
-    </Show>
+    <ComposerEditorConfiguredSelect title={language.t("ui.promptInput.chooseApiKey")} control={control} />
   )
 }
