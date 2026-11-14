@@ -128,7 +128,7 @@ const setup = Effect.fnUntraced(function* (options?: {
     Layer.mock(Image.Service, {}),
     // Prompt conversion is covered by session-prompt.test.ts; these fixtures keep attachments unchanged.
     Layer.mock(MediaConversion.Service, { convert: () => Effect.succeed(null) }),
-    options?.shell ?? Layer.mock(Shell.Service, {}),
+    options?.shell ?? Layer.mock(Shell.Service, { handoffPrepared: () => false }),
   )
   const servicesFor = (ref: Location.Ref) => {
     locations.push(ref)
@@ -511,6 +511,7 @@ describe("Session-owned handles", () => {
       })
       const fixture = yield* setup({
         shell: Layer.mock(Shell.Service, {
+          handoffPrepared: () => false,
           create: (input) =>
             Effect.sync(() => {
               expect(input).toEqual({
