@@ -57,14 +57,28 @@ export function ApiKeyControl(props: {
       (connection) => connection.type === "credential",
     )
 
-    return [
-      { id: DEFAULT_ID, label: language.t("ui.promptInput.apiKey.default") },
+    const result = [
       ...(active?.type === "env" ? [{ id: ENV_ID, label: `$${active.name}` }] : []),
       ...accounts.map((account) => ({
         id: account.id,
-        label: account.label || language.t("ui.promptInput.apiKey.unnamed"),
+        label: account.label || language.t("ui.promptInput.apiKey.default"),
       })),
     ]
+
+    // A provider with nothing saved still gets a readable entry for the chip.
+    if (result.length === 0) return [{ id: DEFAULT_ID, label: language.t("ui.promptInput.apiKey.default") }]
+
+    return result
+  })
+
+  // The Settings default: the active connection, or the first account when nothing is active.
+  const defaultID = createMemo(() => {
+    const active = connections()[0]
+
+    if (active?.type === "credential") return active.id
+    if (active?.type === "env") return ENV_ID
+
+    return options()[0]?.id
   })
 
   const override = createMemo(() => {
@@ -86,12 +100,12 @@ export function ApiKeyControl(props: {
 
     if (pinned && options().some((option) => option.id === pinned)) return pinned
 
-    return DEFAULT_ID
+    return defaultID() ?? DEFAULT_ID
   }
 
   const select = (id: string) => {
-    // Default and the active env value both mean "follow Settings", so pinning nothing.
-    const value = id === DEFAULT_ID || id === ENV_ID ? undefined : id
+    // Picking the active (default) connection unpins the chat instead of storing a redundant override.
+    const value = id === defaultID() || id === DEFAULT_ID ? undefined : id
     const sessionID = props.sessionID()
 
     if (!sessionID) {
