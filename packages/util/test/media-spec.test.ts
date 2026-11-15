@@ -18,7 +18,7 @@ describe("media spec", () => {
   test("converted names keep the stem and swap the extension", () => {
     expect(renameForKind("clip.mov", "video")).toBe("clip.mp4")
     expect(renameForKind("photo.png", "image")).toBe("photo.webp")
-    expect(renameForKind("recording", "audio")).toBe("recording.ogg")
+    expect(renameForKind("recording", "audio")).toBe("recording.mp3")
   })
 
   test("ffprobe frame rates parse as fractions", () => {

@@ -6,9 +6,12 @@ import path from "node:path"
 import { mediaCacheFile, mediaCacheKey } from "./media-cache.js"
 import {
   AUDIO_BITRATE,
+  AUDIO_SAMPLE_RATE,
   IMAGE_QUALITY,
   IMAGE_SHORT_SIDE,
   MAX_INLINE_BYTES,
+  VIDEO_AUDIO_BITRATE,
+  VIDEO_AUDIO_SAMPLE_RATE,
   VIDEO_CRF,
   VIDEO_PRESET,
   audioCompliant,
@@ -164,9 +167,11 @@ async function run(kind: MediaKind, source: string, target: string, signal: Abor
         "-pix_fmt",
         "yuv420p",
         "-c:a",
-        "libopus",
+        "aac",
         "-b:a",
-        AUDIO_BITRATE,
+        VIDEO_AUDIO_BITRATE,
+        "-ar",
+        String(VIDEO_AUDIO_SAMPLE_RATE),
         "-ac",
         "1",
         "-movflags",
@@ -179,7 +184,7 @@ async function run(kind: MediaKind, source: string, target: string, signal: Abor
   if (kind === "audio")
     return command(
       "ffmpeg",
-      ["-y", "-hide_banner", "-loglevel", "error", "-i", source, "-vn", "-c:a", "libopus", "-b:a", AUDIO_BITRATE, "-ac", "1", target],
+      ["-y", "-hide_banner", "-loglevel", "error", "-i", source, "-vn", "-c:a", "libmp3lame", "-b:a", AUDIO_BITRATE, "-ar", String(AUDIO_SAMPLE_RATE), "-ac", "1", target],
       signal,
     )
 

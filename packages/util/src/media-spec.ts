@@ -4,7 +4,7 @@
 export type MediaKind = "image" | "audio" | "video"
 
 /** Bump to invalidate every cached conversion when the spec changes. */
-export const MEDIA_SPEC_VERSION = 1
+export const MEDIA_SPEC_VERSION = 2
 
 /** The model-ingestion cap; conversions are judged against the output's size. */
 export const MAX_INLINE_BYTES = 20 * 1024 * 1024
@@ -12,9 +12,12 @@ export const MAX_INLINE_BYTES = 20 * 1024 * 1024
 export const IMAGE_SHORT_SIDE = 1080
 export const IMAGE_QUALITY = 80
 
-export const AUDIO_BITRATE = "16k"
-/** Already-compliant audio may sit a little above 16k without a re-encode. */
-export const AUDIO_MAX_BITRATE = 32_000
+export const AUDIO_BITRATE = "64k"
+export const VIDEO_AUDIO_BITRATE = "48k"
+export const AUDIO_SAMPLE_RATE = 44_100
+export const VIDEO_AUDIO_SAMPLE_RATE = 48_000
+/** Already-compliant audio may sit a little above 64k without a re-encode. */
+export const AUDIO_MAX_BITRATE = 96_000
 
 export const VIDEO_SHORT_SIDE = 540
 export const VIDEO_FPS = 4
@@ -33,13 +36,13 @@ export function kindOf(mime: string): MediaKind | undefined {
 
 export function outputMime(kind: MediaKind) {
   if (kind === "image") return "image/webp"
-  if (kind === "audio") return "audio/ogg"
+  if (kind === "audio") return "audio/mpeg"
   return "video/mp4"
 }
 
 export function outputExtension(kind: MediaKind) {
   if (kind === "image") return "webp"
-  if (kind === "audio") return "ogg"
+  if (kind === "audio") return "mp3"
   return "mp4"
 }
 
@@ -68,7 +71,7 @@ export function imageCompliant(input: { mime: string; width: number; height: num
 }
 
 export function audioCompliant(input: { codec: string; channels: number; bitrate: number }) {
-  return input.codec === "opus" && input.channels === 1 && input.bitrate > 0 && input.bitrate <= AUDIO_MAX_BITRATE
+  return input.codec === "mp3" && input.channels === 1 && input.bitrate > 0 && input.bitrate <= AUDIO_MAX_BITRATE
 }
 
 /** Parses ffprobe's "30/1" and "30000/1001" frame-rate strings. */
