@@ -241,13 +241,14 @@ export const SettingsWorkspaces: Component<{
   }
 
   // A bulk delete checks each worktree first; a single one was checked in its confirmation and deletes with force.
+  // The unused sweep keeps only active locations and linked sessions; it discards unmerged changes.
   const removeWorkspace = async (effect: Extract<WorkspaceDeleteEffect, { type: "delete.run" }>) => {
     const target = effect.target
 
     if (!effect.force) {
       const preflight = await inspect(target.directory, effect.active)
 
-      if (preflight.active || preflight.linked || preflight.dirty)
+      if (preflight.active || preflight.linked || (preflight.dirty && effect.scope !== "unused"))
         return dispatch({
           type: "delete.skipped",
           attempt: effect.attempt,
@@ -258,7 +259,7 @@ export const SettingsWorkspaces: Component<{
     await serverSDK.api.worktree.remove({
       projectID: target.projectID,
       directory: target.directory,
-      force: effect.force,
+      force: effect.force || effect.scope === "unused",
     })
     dispatch({ type: "delete.succeeded", attempt: effect.attempt, target })
   }

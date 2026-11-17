@@ -1334,7 +1334,7 @@ export const dict = {
   "settings.workspaces.deleteWithoutSessions.confirm.other":
     "This will permanently delete {{count}} worktrees without linked sessions.",
   "settings.workspaces.deleteWithoutSessions.warning":
-    "Worktrees with unmerged changes or active locations will be kept.",
+    "Worktrees with active locations will be kept. Unmerged changes will be lost.",
   "settings.workspaces.delete.button": "Delete worktrees",
   "settings.workspaces.delete.warning": "This permanently deletes the worktree and its branch.",
   "settings.workspaces.deleteAll.warning":

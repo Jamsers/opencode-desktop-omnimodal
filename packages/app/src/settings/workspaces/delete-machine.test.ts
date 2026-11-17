@@ -35,11 +35,18 @@ function replay(events: WorkspaceDeleteEvent[], state = createWorkspaceDeleteSta
   )
 }
 
-const run = (attempt: number, item: WorkspaceTarget, force: boolean, active?: string): WorkspaceDeleteEffect => ({
+const run = (
+  attempt: number,
+  item: WorkspaceTarget,
+  force: boolean,
+  active?: string,
+  scope: "one" | "all" | "unused" = "all",
+): WorkspaceDeleteEffect => ({
   type: "delete.run",
   attempt,
   target: item,
   force,
+  scope,
   active,
   timeoutMs: WORKSPACE_DELETE_TIMEOUT_MS,
 })
@@ -79,7 +86,7 @@ describe("workspace delete machine", () => {
     expect(late.state).toBe(next.state)
     expect(isWorkspaceDeleteBusy(late.state)).toBe(true)
     expect(transitionWorkspaceDelete(late.state, { type: "confirm.accepted", attempt: 4 }).effects).toEqual([
-      run(6, b, true),
+      run(6, b, true, undefined, "one"),
     ])
   })
 
@@ -123,7 +130,7 @@ describe("workspace delete machine", () => {
         retried.state,
       )
 
-      expect(ready.effects).toEqual([run(4, a, true, "/repo")])
+      expect(ready.effects).toEqual([run(4, a, true, "/repo", "one")])
     }
   })
 
@@ -247,6 +254,20 @@ describe("workspace delete machine", () => {
       transitionWorkspaceDelete(done.state, { type: "delete.skipped", attempt: 4, reason: { kind: "timed-out" } })
         .state,
     ).toBe(done.state)
+  })
+
+  test("the unused sweep marks its runs so the driver discards unmerged changes", () => {
+    const opened = replay([{ type: "confirm.opened", scope: "unused", active: "/repo", targets: [a, b] }])
+    const first = transitionWorkspaceDelete(opened.state, { type: "confirm.accepted", attempt: 1 })
+    expect(first.effects).toEqual([run(2, a, false, "/repo", "unused")])
+
+    const second = transitionWorkspaceDelete(first.state, { type: "delete.succeeded", attempt: 2, target: a })
+    expect(second.effects).toEqual([
+      { type: "delete.timer.stop", attempt: 2 },
+      { type: "collapse.start", attempt: 2, delayMs: WORKSPACE_COLLAPSE_MS },
+    ])
+    const collapsed = transitionWorkspaceDelete(second.state, { type: "collapse.completed", attempt: 2 })
+    expect(collapsed.effects).toEqual([{ type: "finalize.removed", target: a }, run(3, b, false, "/repo", "unused")])
   })
 
   test("closing the list mid-delete still reconciles what the server removed", () => {

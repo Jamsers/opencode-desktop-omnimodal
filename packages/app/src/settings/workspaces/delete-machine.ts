@@ -34,6 +34,8 @@ type Run = {
   readonly issued: number
   readonly attempt: number
   readonly force: boolean
+  /** The confirmation that issued this run; the unused sweep discards unmerged changes. */
+  readonly scope: WorkspaceDeleteScope
   /** The directory the settings were opened from, which a bulk delete keeps. */
   readonly active: string | undefined
   readonly current: WorkspaceTarget
@@ -120,6 +122,7 @@ export type WorkspaceDeleteEffect =
       readonly attempt: number
       readonly target: WorkspaceTarget
       readonly force: boolean
+      readonly scope: WorkspaceDeleteScope
       readonly active: string | undefined
       readonly timeoutMs: number
     }
@@ -319,7 +322,15 @@ function confirming(state: Confirming, event: WorkspaceDeleteEvent): WorkspaceDe
 
     if (!current) return { state: { status: "idle", issued: state.issued, removed: state.removed }, effects: NONE }
 
-    return start({ issued: state.issued, force: false, active: state.active, current, queue, removed: state.removed })
+    return start({
+      issued: state.issued,
+      force: false,
+      scope: state.scope,
+      active: state.active,
+      current,
+      queue,
+      removed: state.removed,
+    })
   }
 
   if (event.type === "inspect.retried" && state.preflight.status === "failed") {
@@ -337,6 +348,7 @@ function confirming(state: Confirming, event: WorkspaceDeleteEvent): WorkspaceDe
   return start({
     issued: state.issued,
     force: true,
+    scope: "one",
     active: state.active,
     current: state.target,
     queue: [],
@@ -364,6 +376,7 @@ function start(run: Omit<Run, "attempt">): WorkspaceDeleteTransition {
       issued: attempt,
       attempt,
       force: run.force,
+      scope: run.scope,
       active: run.active,
       current: run.current,
       queue: run.queue,
@@ -376,6 +389,7 @@ function start(run: Omit<Run, "attempt">): WorkspaceDeleteTransition {
         attempt,
         target: run.current,
         force: run.force,
+        scope: run.scope,
         active: run.active,
         timeoutMs: WORKSPACE_DELETE_TIMEOUT_MS,
       },
