@@ -18,19 +18,18 @@ export default function NewSessionPage(props: { draftId: string }) {
   const tabs = useTabs()
   const layout = useLayout()
 
-  // FORK: read/write the routed draft by props.draftId, not search params, so picks target the submitted draft. Drop when upstream fixes draft targeting.
   const draftTab = createMemo(() =>
-    tabs.store.find((tab): tab is DraftTab => tab.type === "draft" && tab.draftID === props.draftId),
+    tabs.store.find((tab): tab is DraftTab => tab.type === "draft" && tab.draftID === search.draftId),
   )
 
   const workspace = createNewSessionWorkspaceController({
     selectedWorktree: () => draftTab()?.worktree,
     selectedBranch: () => draftTab()?.branch,
     setSelectedWorktree: (worktree) => {
-      tabs.updateDraft(props.draftId, { worktree })
+      if (search.draftId) tabs.updateDraft(search.draftId, { worktree })
     },
     setSelectedBranch: (branch) => {
-      tabs.updateDraft(props.draftId, { branch })
+      if (search.draftId) tabs.updateDraft(search.draftId, { branch })
     },
   })
 

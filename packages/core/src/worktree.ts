@@ -297,6 +297,10 @@ const layer = Layer.effect(
       )
       const strategies = Array.from(settings.strategies.values()).toReversed()
       const discovered = new Map<AbsolutePath, StoredInput>()
+      // Strategies that listed at least once without error. A failed listing never prunes, so a
+      // transient discovery failure cannot wipe the inventory.
+      // FORK: prune managed rows a successful listing no longer returns (e.g. an empty orphan directory). Drop when upstream prunes undiscovered worktrees itself.
+      const succeeded = new Set<StrategyID>()
       // Unowned rows are checkout/discovery roots. Managed children are enumerated by their backend.
       const roots = new Set([
         row.worktree,
@@ -309,10 +313,12 @@ const layer = Layer.effect(
             Effect.mapError((error) => operationError(strategy.id, "list", error)),
             Effect.catch((error) =>
               Effect.logWarning("worktree discovery failed", { directory, strategy: strategy.id, error }).pipe(
-                Effect.as([]),
+                Effect.as(null),
               ),
             ),
           )
+          if (entries === null) continue
+          succeeded.add(strategy.id)
           for (const entry of entries) {
             const directory = yield* canonical(fs, entry.directory).pipe(
               Effect.catchTag("Worktree.DirectoryUnavailableError", () => Effect.undefined),
@@ -325,7 +331,17 @@ const layer = Layer.effect(
           }
         }
       }
-      const removed = checked.filter((item) => !item.exists).map((item) => item.directory)
+      // Existing managed rows a successful listing no longer returns are orphans: an empty directory
+      // after an interrupted create, or a checkout git no longer knows after an external prune or
+      // manual delete. Only a strategy that listed without error may prune, and only its own rows.
+      // Inventory rows only; deleting the leftover contents stays with `remove`.
+      const orphaned = checked
+        .filter(
+          (item) =>
+            item.exists && item.strategy && succeeded.has(item.strategy) && !discovered.has(item.directory),
+        )
+        .map((item) => item.directory)
+      const removed = [...checked.filter((item) => !item.exists).map((item) => item.directory), ...orphaned]
       const changes = yield* db
         .transaction((tx) =>
           Effect.all({

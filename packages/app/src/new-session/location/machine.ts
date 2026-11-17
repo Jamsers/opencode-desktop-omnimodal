@@ -1,5 +1,4 @@
 import type { PromptProject, PromptServer } from "@/new-session/project/selector"
-import { comparablePath } from "@opencode/util/path"
 
 export type LocationEntry =
   | { readonly id: string; readonly type: "project"; readonly project: PromptProject }
@@ -322,9 +321,8 @@ export function locationDialogView(state: LocationDialogState) {
   }
 }
 
-// FORK: normalize the entry ID so the same directory keeps one ID across slash forms. Drop when upstream fixes picker active-row stability.
 export function projectEntryID(project: PromptProject) {
-  return `project:${project.server?.key ?? ""}:${comparablePath(project.worktree)}`
+  return `project:${project.server?.key ?? ""}:${project.worktree}`
 }
 
 // Leaves the current step for `next`, remembering the current step and its active row to return to.

@@ -729,6 +729,30 @@ describe("Worktree", () => {
     }),
   )
 
+  // An empty directory with a managed row but no git registration (interrupted create, external prune)
+  // is pruned once a listing succeeds, without deleting the leftover contents; `remove` owns deletion.
+  it.live("refresh prunes an existing directory a successful listing no longer returns", () =>
+    Effect.gen(function* () {
+      const input = yield* setup()
+      const orphanRaw = `${input.root.path}-orphan-empty`
+      yield* Effect.promise(() => fs.mkdir(orphanRaw))
+      yield* Effect.addFinalizer(() => Effect.promise(() => fs.rm(orphanRaw, { recursive: true, force: true })))
+      const orphan = abs(yield* Effect.promise(() => fs.realpath(orphanRaw)))
+      yield* input.db
+        .insert(WorktreeTable)
+        .values({ project_id: input.projectID, directory: orphan, strategy: Worktree.StrategyID.make("git") })
+        .run()
+        .pipe(Effect.orDie)
+      const worktree = yield* fixtureWorktree()
+
+      yield* worktree.refresh()
+
+      expect(yield* stored(input.projectID)).not.toContainEqual({ directory: orphan, strategy: "git" })
+      expect(yield* Effect.promise(() => fs.readdir(orphan))).toEqual([])
+      expect(yield* worktree.list()).toEqual([{ directory: input.sourceDirectory, strategy: undefined }])
+    }),
+  )
+
   it.live("defaults to Git and configured directory without depending on Config", () =>
     Effect.gen(function* () {
       const input = yield* setup()
