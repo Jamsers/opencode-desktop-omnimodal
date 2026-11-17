@@ -16,6 +16,7 @@ import { DialogMcp } from "@/providers/connect/mcp-dialog"
 import { ExtensionPlugins } from "@/runtime/plugin/extension-plugins"
 import { ExternalLink } from "@/runtime/platform/external-link"
 import { usePlatform } from "@/runtime/platform/platform"
+import { showToast } from "@/shell/notifications/toast"
 import { SettingsList } from "@/settings/list"
 import { createExtensionLoad, ExtensionLoadFailed } from "@/settings/extension-load"
 import type { SettingsView } from "@/settings/surface"
@@ -62,8 +63,18 @@ export const SettingsExtensions: Component<{
       .toSorted((a, b) => a.name.localeCompare(b.name))
   })
 
-  const toggle = (item: McpServer, enabled: boolean) =>
+  const toggle = (item: McpServer, enabled: boolean) => {
     mcp.dispatch({ type: "toggle.requested", name: item.name, enabled, status: item.status.status })
+    void serverSdk.api.experimental.config
+      .update({ mcp: { server: item.name, enabled } })
+      .catch(() =>
+        showToast({
+          variant: "error",
+          title: language.t("common.requestFailed"),
+          description: language.t("settings.extensions.mcp.persistFailed"),
+        }),
+      )
+  }
 
   const sources = createConsoleSources(() => props.directory)
 

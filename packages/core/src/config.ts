@@ -4,6 +4,7 @@ import { makeLocationNode } from "@opencode/util/effect/app-node"
 import path from "path"
 import { isDeepStrictEqual } from "node:util"
 import { applyEdits, modify, type ParseError, parse } from "jsonc-parser"
+import { isRecord } from "@opencode/util/record"
 import { Context, Effect, FiberMap, Layer, Option, PubSub, Ref, Schema, Semaphore, Stream } from "effect"
 import { Directory, Document, Info, type Patch, type Entry, Event } from "@opencode/schema/config"
 import { Credential } from "./credential.js"
@@ -473,14 +474,19 @@ export const layer = (options?: Options) =>
           const filepath =
             (yield* Effect.filter(candidates, fs.isFile)).at(-1) ?? path.join(directory, "opencode.jsonc")
           const text = (yield* fs.readFileStringSafe(filepath)) ?? "{}\n"
+          const current = parse(text) as unknown
+          const mcp = isRecord(current) ? current.mcp : undefined
+          const servers = isRecord(mcp) ? mcp.servers : undefined
+          const formats = { formattingOptions: { tabSize: 2, insertSpaces: true } }
+          const edits = [
+            ...(patch.shell !== undefined ? [modify(text, ["shell"], patch.shell ?? undefined, formats)] : []),
+            ...(patch.mcp && isRecord(servers) && isRecord(servers[patch.mcp.server])
+              ? [modify(text, ["mcp", "servers", patch.mcp.server, "disabled"], !patch.mcp.enabled, formats)]
+              : []),
+          ]
+          if (edits.length === 0) return
           const updated = yield* Effect.try({
-            try: () =>
-              applyEdits(
-                text,
-                modify(text, ["shell"], patch.shell ?? undefined, {
-                  formattingOptions: { tabSize: 2, insertSpaces: true },
-                }),
-              ),
+            try: () => edits.reduce((acc, edit) => applyEdits(acc, edit), text),
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),
           })
           yield* fs.writeWithDirs(filepath, updated.endsWith("\n") ? updated : `${updated}\n`)

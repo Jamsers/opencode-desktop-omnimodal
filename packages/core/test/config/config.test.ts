@@ -706,6 +706,39 @@ describe("Config", () => {
     ),
   )
 
+  it.live("updates only disabled flags for MCP servers defined in the global config", () =>
+    Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
+      Effect.flatMap((tmp) =>
+        Effect.gen(function* () {
+          const global = path.join(tmp.path, "global")
+          const project = path.join(tmp.path, "project")
+          const file = path.join(global, "opencode.json")
+          yield* Effect.promise(async () => {
+            await fs.mkdir(global, { recursive: true })
+            await fs.mkdir(project, { recursive: true })
+            await fs.writeFile(
+              file,
+              JSON.stringify({ mcp: { servers: { demo: { type: "local", command: ["demo"] } } } }),
+            )
+          })
+          return yield* Effect.gen(function* () {
+            const config = yield* Config.Service
+
+            yield* config.update!({ mcp: { server: "demo", enabled: false } })
+            expect((yield* Effect.promise(() => fs.readFile(file, "utf8"))).includes('"disabled": true')).toBe(true)
+
+            yield* config.update!({ mcp: { server: "demo", enabled: true } })
+            expect((yield* Effect.promise(() => fs.readFile(file, "utf8"))).includes('"disabled": false')).toBe(true)
+
+            const before = yield* Effect.promise(() => fs.readFile(file, "utf8"))
+            yield* config.update!({ mcp: { server: "missing", enabled: false } })
+            expect(yield* Effect.promise(() => fs.readFile(file, "utf8"))).toBe(before)
+          }).pipe(Effect.provide(testLayer(project, global, project)))
+        }),
+      ),
+    ),
+  )
+
   it.live("reloads file substitutions when their source changes", () =>
     Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
       Effect.flatMap((tmp) =>

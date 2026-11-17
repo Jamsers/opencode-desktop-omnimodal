@@ -117,7 +117,15 @@ export class Info extends Schema.Class<Info>("Config.Info")({
 }) {}
 
 export const Patch = Schema.Struct({
-  shell: Schema.NullOr(Schema.String),
+  shell: Schema.NullOr(Schema.String).pipe(optional),
+  mcp: Schema.Struct({
+    server: Schema.String,
+    enabled: Schema.Boolean,
+  })
+    .pipe(optional)
+    .annotate({
+      description: "Set whether a config-defined MCP server is enabled.",
+    }),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

@@ -1026,6 +1026,7 @@ export const dict = {
   "settings.extensions.addSkills": "How to add skills",
   "settings.extensions.plugins.loadFailed": "Could not load plugins",
   "settings.extensions.sources.loadFailed": "Could not load extension sources",
+  "settings.extensions.mcp.persistFailed": "Could not save the MCP setting.",
   "settings.extensions.console.temporary":
     "Switches temporarily control MCP connections for the current project, not your Console preferences. Server configuration changes can reconnect them.",
   "settings.extensions.console.replaced": "Replaces OpenCode Console",
