@@ -513,6 +513,26 @@ describe("Worktree", () => {
     }),
   )
 
+  it.live("removes an orphan worktree whose git metadata is gone", () =>
+    Effect.gen(function* () {
+      const input = yield* setup()
+      const worktree = yield* fixtureWorktree()
+      const orphan = abs(`${input.root.path}-worktree-orphan`)
+      yield* Effect.promise(() => fs.mkdir(orphan))
+      yield* Effect.addFinalizer(() => Effect.promise(() => fs.rm(orphan, { recursive: true, force: true })))
+      yield* input.db
+        .insert(WorktreeTable)
+        .values({ project_id: input.projectID, directory: orphan, strategy: Worktree.StrategyID.make("git") })
+        .run()
+        .pipe(Effect.orDie)
+
+      yield* worktree.remove({ directory: orphan, force: false })
+
+      expect(yield* stored(input.projectID)).not.toContainEqual({ directory: orphan, strategy: "git" })
+      expect(yield* Effect.promise(() => Bun.file(orphan).exists())).toBe(false)
+    }),
+  )
+
   it.live("adds a numeric suffix when a worktree directory already exists", () =>
     Effect.gen(function* () {
       const input = yield* setup()

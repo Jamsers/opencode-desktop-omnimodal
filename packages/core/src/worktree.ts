@@ -261,12 +261,25 @@ const layer = Layer.effect(
       if (!stored?.strategy) return yield* new InvalidDirectoryError({ directory: worktreeDirectory })
       const settings = yield* load(row.worktree, current)
       const strategy = yield* getStrategy(stored.strategy, settings.strategies)
+      // FORK: evict the target Location so Windows can delete a held cwd. Drop when upstream fixes Windows worktree removal.
+      yield* locations.invalidate(Location.Ref.make({ directory: worktreeDirectory }))
       yield* strategy
         .remove({
           directory: worktreeDirectory,
           force: input.force,
         })
-        .pipe(Effect.mapError((error) => operationError(strategy.id, "remove", error)))
+        .pipe(
+          Effect.mapError((error) => operationError(strategy.id, "remove", error)),
+          Effect.catchTag("Worktree.DirectoryUnavailableError", () =>
+            Effect.gen(function* () {
+              if (!(yield* fs.isDir(worktreeDirectory)))
+                return yield* new DirectoryUnavailableError({ directory: worktreeDirectory })
+              yield* fs
+                .remove(worktreeDirectory, { recursive: true, force: true })
+                .pipe(Effect.mapError((error) => operationError(strategy.id, "remove", error)))
+            }),
+          ),
+        )
       yield* changed(input.projectID, yield* ops.remove(input.projectID, worktreeDirectory))
     }, Effect.scoped)
 
