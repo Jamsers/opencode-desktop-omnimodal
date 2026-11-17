@@ -14,7 +14,7 @@ import {
 import { TextInput } from "@opencode/ui/text-input"
 import { createTypeahead } from "@opencode/ui/typeahead"
 import { createEventListener } from "@solid-primitives/event-listener"
-import { getFilename } from "@opencode/util/path"
+import { comparablePath, getFilename } from "@opencode/util/path"
 import {
   createEffect,
   createMemo,
@@ -312,8 +312,9 @@ function NewSessionLocationDialog(props: {
         { id: "main", type: "workspace" as const, project, value: "main", directory: project.worktree },
         { id: "create", type: "workspace" as const, project, value: "create", directory: project.worktree },
         ...(project.vcs === "git" ? [{ id: "base", type: "base" as const, project, directory: project.worktree }] : []),
+        // FORK: same ID normalization as projectEntryID, so the active row survives a listing refresh. Drop when upstream fixes picker active-row stability.
         ...directories.map((directory) => ({
-          id: `worktree:${directory}`,
+          id: `worktree:${comparablePath(directory)}`,
           type: "workspace" as const,
           project,
           value: directory,

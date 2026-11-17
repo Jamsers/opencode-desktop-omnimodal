@@ -425,6 +425,7 @@ function NewSessionLocation(props: {
             {(onOpen) => (
               <NewSessionBranch
                 branch={props.branch}
+                creating={props.workspace === "create"}
                 loading={branchLoading()}
                 onboarding={props.onboarding}
                 onOpen={onOpen()}

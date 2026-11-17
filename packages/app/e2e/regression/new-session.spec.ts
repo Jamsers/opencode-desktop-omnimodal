@@ -391,7 +391,7 @@ test("the dialog chooses the base branch for a new worktree", async ({ page }) =
   await expect(search).toHaveCount(0)
   await dialog.getByRole("option", { name: /^New worktree/ }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(newSessionBranch(page)).toHaveText("release/base")
+  await expect(newSessionBranch(page)).toHaveText("New worktree")
   await expect(page.locator('[data-slot="new-session-location-path"]')).toHaveText(view.directory)
 
   await view.editor.fill("Use the selected base")
@@ -507,7 +507,7 @@ test("the branch shortcut opens the base branch step", async ({ page }) => {
   await expect(dialog.getByRole("option", { name: /^from release\/base/ })).toBeVisible()
   await dialog.getByRole("option", { name: /^New worktree/ }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(newSessionBranch(page)).toHaveText("release/base")
+  await expect(newSessionBranch(page)).toHaveText("New worktree")
   await expect(view.editor).toBeFocused()
 
   await view.editor.press(`${modifier}+Alt+KeyB`)
