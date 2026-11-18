@@ -2,8 +2,10 @@ export * as McpResourceTools from "./mcp-resource.js"
 
 import { ToolFailure } from "@opencode/ai/effect"
 import type { Context } from "@opencode/plugin/effect/plugin"
-import { Effect, Schema } from "effect"
+import { Effect, Option, Schema } from "effect"
+import { extension } from "mime-types"
 import { Mcp } from "../../mcp/index.js"
+import { MediaConversion } from "../../media-convert.js"
 import { Mime } from "../../mime.js"
 import { Permission } from "../../permission.js"
 
@@ -12,6 +14,7 @@ export const Plugin = {
   effect: Effect.fn("McpResourceTools.Plugin")(function* (ctx: Context) {
     const mcp = yield* Mcp.Service
     const permission = yield* Permission.Service
+    const conversion = Option.getOrUndefined(yield* Effect.serviceOption(MediaConversion.Service))
 
     yield* ctx.tool
       .transform((editor) => {
@@ -73,15 +76,32 @@ export const Plugin = {
                 return yield* new ToolFailure({
                   message: `MCP server "${input.server}" is not connected or does not expose resources`,
                 })
+              const content = yield* Effect.forEach(resource.contents, (part) =>
+                Effect.gen(function* () {
+                  if (part.type !== "blob" || part.mimeType === undefined || !Mime.isMedia(part.mimeType)) return []
+                  const mime = part.mimeType.split(";", 1)[0].trim().toLowerCase()
+                  const name = mediaName(part.uri, mime)
+                  if (conversion !== undefined) {
+                    const converted = yield* conversion.convert({
+                      bytes: new Uint8Array(Buffer.from(part.blob, "base64")),
+                      name,
+                      mime,
+                    })
+                    if (converted?.converted && converted.bytes)
+                      return [
+                        {
+                          type: "file" as const,
+                          uri: `data:${converted.mime};base64,${Buffer.from(converted.bytes).toString("base64")}`,
+                          mime: converted.mime,
+                        },
+                      ]
+                  }
+                  return [{ type: "file" as const, uri: `data:${part.mimeType};base64,${part.blob}`, mime: part.mimeType }]
+                }),
+              )
               return {
                 output: resource,
-                content: resource.contents.flatMap((part) =>
-                  part.type === "blob" &&
-                  part.mimeType !== undefined &&
-                  Mime.isMedia(part.mimeType)
-                    ? [{ type: "file" as const, uri: `data:${part.mimeType};base64,${part.blob}`, mime: part.mimeType }]
-                    : [],
-                ),
+                content: content.flat(),
               }
             }).pipe(
               Effect.mapError((error) =>
@@ -97,4 +117,11 @@ export const Plugin = {
       })
       .pipe(Effect.orDie)
   }),
+}
+
+const mediaName = (uri: string, mime: string) => {
+  const base = uri.split(/[\\/]/).pop()
+  if (base && base.includes(".")) return base
+  const ext = extension(mime)
+  return `mcp-content${ext ? `.${ext}` : ""}`
 }

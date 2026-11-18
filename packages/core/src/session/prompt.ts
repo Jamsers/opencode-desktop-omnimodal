@@ -125,30 +125,51 @@ const materializeAttachment = Effect.fn("SessionPrompt.materializeAttachment")(f
         mime: undefined,
       }
     : yield* readFileAttachment(input.uri, conversion)
-  if (resolved.bytes.byteLength > MAX_ATTACHMENT_BYTES)
+  // Inline data URLs arrive as bytes with no path, so they need the same pre-size-gate conversion as file URIs.
+  let inline: { bytes: Uint8Array; name: string; mime: string } | undefined
+  if (input.uri.startsWith("data:") && conversion !== undefined) {
+    const sniffed = Mime.detectNamed(resolved.bytes, input.name)
+    if (Mime.isMedia(sniffed)) {
+      const converted = yield* conversion.convert({
+        bytes: new Uint8Array(resolved.bytes),
+        name: input.name ?? "attachment",
+        mime: sniffed,
+      })
+      if (converted?.converted) {
+        if (converted.size > MAX_ATTACHMENT_BYTES || !converted.bytes)
+          return yield* new AttachmentError({
+            uri: label,
+            message: `Attachment exceeds the ${MAX_ATTACHMENT_BYTES} byte limit: ${label}`,
+          })
+        inline = { bytes: converted.bytes, name: converted.name, mime: converted.mime }
+      }
+    }
+  }
+  const bytes = inline?.bytes ?? resolved.bytes
+  if (bytes.byteLength > MAX_ATTACHMENT_BYTES)
     return yield* new AttachmentError({
       uri: label,
       message: `Attachment exceeds the ${MAX_ATTACHMENT_BYTES} byte limit: ${label}`,
     })
 
   // Office documents share a zip signature; the attachment's name disambiguates them after sniffing.
-  const mime = resolved.mime ?? Mime.detectNamed(resolved.bytes, input.name ?? resolved.name)
+  const mime = inline?.mime ?? resolved.mime ?? Mime.detectNamed(bytes, input.name ?? resolved.name)
   const content =
     mime === "text/plain" && resolved.start !== undefined
       ? Buffer.from(
-          Buffer.from(resolved.bytes)
+          Buffer.from(bytes)
             .toString("utf8")
             .split("\n")
             .slice(resolved.start - 1, resolved.end)
             .join("\n"),
         )
-      : resolved.bytes
+      : bytes
   const normalized = yield* normalizeImageAttachment(input, Buffer.from(content).toString("base64"), mime)
   return FileAttachment.create({
     data: normalized.data,
     mime: normalized.mime,
     source: resolved.source,
-    name: input.name ?? resolved.name,
+    name: input.name ?? inline?.name ?? resolved.name,
     description: input.description,
     mention: input.mention,
   })

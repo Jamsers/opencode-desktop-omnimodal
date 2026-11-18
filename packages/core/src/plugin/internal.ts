@@ -155,6 +155,7 @@ const services = [
   Location.Service,
   ModelsDev.Service,
   Mcp.Service,
+  MediaConversion.Service,
   Npm.Service,
   Permission.Service,
   Form.Service,

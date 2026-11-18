@@ -8,6 +8,7 @@ import { extension } from "mime-types"
 import { Bus } from "../bus.js"
 
 import { Mcp } from "../mcp/index.js"
+import { MediaConversion } from "../media-convert.js"
 import { Mime } from "../mime.js"
 import { Permission } from "../permission.js"
 import { Tool } from "../tool.js"
@@ -41,6 +42,7 @@ export const layer = Layer.effect(
     const bus = yield* Bus.Service
     const permission = yield* Permission.Service
     const toolOutput = yield* ToolOutput.Service
+    const conversion = yield* MediaConversion.Service
     const lock = Semaphore.makeUnsafe(1)
     let discovered: Mcp.Tool[] = []
 
@@ -88,7 +90,7 @@ export const layer = Layer.effect(
                             .join("\n")
                             .trim() || "MCP tool returned an error",
                       })
-                    const content = yield* Effect.forEach(result.content, (part) => toContent(part, toolOutput))
+                    const content = yield* Effect.forEach(result.content, (part) => toContent(part, toolOutput, conversion))
                     const text = content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")
                     const output = () => {
                       if (result.structured !== undefined) return result.structured
@@ -152,11 +154,27 @@ export const layer = Layer.effect(
 )
 
 // Only media the read tool also accepts is sent inline; other types would fail request lowering on every later turn.
-const toContent = Effect.fnUntraced(function* (part: Mcp.ToolResultContent, toolOutput: ToolOutput.Interface) {
+const toContent = Effect.fnUntraced(function* (
+  part: Mcp.ToolResultContent,
+  toolOutput: ToolOutput.Interface,
+  conversion: MediaConversion.Interface,
+) {
   if (part.type === "text") return { type: "text" as const, text: part.text }
   const mime = part.mimeType.split(";", 1)[0].trim().toLowerCase()
-  if (Mime.isMedia(mime))
+  if (Mime.isMedia(mime)) {
+    const converted = yield* conversion.convert({
+      bytes: new Uint8Array(Buffer.from(part.data, "base64")),
+      name: mediaName(part.uri, mime),
+      mime,
+    })
+    if (converted?.converted && converted.bytes)
+      return {
+        type: "file" as const,
+        uri: `data:${converted.mime};base64,${Buffer.from(converted.bytes).toString("base64")}`,
+        mime: converted.mime,
+      }
     return { type: "file" as const, uri: `data:${part.mimeType};base64,${part.data}`, mime: part.mimeType }
+  }
   const bytes = Buffer.from(part.data, "base64")
   const label = part.uri ?? "content"
   if (Mime.isTextual(mime))
@@ -169,8 +187,15 @@ const toContent = Effect.fnUntraced(function* (part: Mcp.ToolResultContent, tool
   }
 })
 
+const mediaName = (uri: string | undefined, mime: string) => {
+  const base = uri?.split(/[\\/]/).pop()
+  if (base && base.includes(".")) return base
+  const ext = extension(mime)
+  return `mcp-content${ext ? `.${ext}` : ""}`
+}
+
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [Tool.node, Mcp.node, Bus.node, Permission.node, ToolOutput.node],
+  deps: [Tool.node, Mcp.node, Bus.node, Permission.node, ToolOutput.node, MediaConversion.node],
 })
