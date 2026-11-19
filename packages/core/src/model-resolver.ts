@@ -10,6 +10,8 @@ import {
   LanguageModel,
   ProviderConfigurationError,
   type ProviderPackage,
+  VideoModel,
+  VideoModelSchema,
 } from "@opencode/ai/effect"
 import { Auth, mergeTransport } from "@opencode/ai/route"
 import { Context, Effect, Layer, Schema, Struct } from "effect"
@@ -164,6 +166,8 @@ export interface Interface {
   ) => Effect.Effect<Resolved, Error>
   /** An enabled image model by ref, or undefined when no image model has that ref. */
   readonly resolveImage: (ref: Ref) => Effect.Effect<ImageModel | undefined, MediaError>
+  /** An enabled video model by ref, or undefined when no video model has that ref. */
+  readonly resolveVideo: (ref: Ref) => Effect.Effect<VideoModel | undefined, MediaError>
   /** An enabled decision model by ref, or undefined when no decision model has that ref. */
   readonly resolveDecision: (ref: Ref) => Effect.Effect<DecisionModel | undefined, MediaError>
 }
@@ -363,6 +367,7 @@ const constructionError = (model: RuntimeInfo, cause: unknown) =>
 
 const isImageModel = Schema.is(ImageModelSchema)
 const isDecisionModel = Schema.is(DecisionModelSchema)
+const isVideoModel = Schema.is(VideoModelSchema)
 
 function prepareRuntimeModel(model: RuntimeInfo) {
   if (model.settings?.apiKey !== "") return model
@@ -606,6 +611,9 @@ export const layer = Layer.effect(
       resolveModelWithConnection: loadWithConnection,
       resolveImage: Effect.fn("ModelResolver.resolveImage")(function* (ref) {
         return yield* loadMedia(ref, "image", isImageModel)
+      }),
+      resolveVideo: Effect.fn("ModelResolver.resolveVideo")(function* (ref) {
+        return yield* loadMedia(ref, "video", isVideoModel)
       }),
       resolveDecision: Effect.fn("ModelResolver.resolveDecision")(function* (ref) {
         return yield* loadMedia(ref, "decision", isDecisionModel)

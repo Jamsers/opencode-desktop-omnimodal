@@ -449,7 +449,7 @@ export const SettingsWorkspaces: Component<{
                     <span class="min-w-0 truncate">
                       {projectOptions().find((option) => option.id === selectedProject())?.label}
                     </span>
-                    <Icon name="chevron-down" size="small" class="shrink-0 text-v2-icon-icon-muted" />
+                    <Icon name="chevron-down" class="shrink-0 text-v2-icon-icon-muted" />
                   </Menu.Trigger>
                   <Menu.Portal>
                     <Menu.Content>
@@ -458,7 +458,7 @@ export const SettingsWorkspaces: Component<{
                           <Menu.Item onSelect={() => setProjectFilter(option.id)}>
                             <span class="min-w-0 flex-1 truncate">{option.label}</span>
                             <Show when={selectedProject() === option.id}>
-                              <Icon name="check" size="small" class="shrink-0" />
+                              <Icon name="check" class="shrink-0" />
                             </Show>
                           </Menu.Item>
                         )}
@@ -475,7 +475,7 @@ export const SettingsWorkspaces: Component<{
                   size="small"
                   aria-label={language.t("common.moreOptions")}
                   disabled={busy()}
-                  icon={<Icon name="outline-dots" size="small" />}
+                  icon={<Icon name="outline-dots" />}
                 />
                 <Menu.Portal>
                   <Menu.Content>
@@ -549,7 +549,7 @@ export const SettingsWorkspaces: Component<{
                                     name: getFilename(workspace().directory),
                                   })}
                                   disabled={busy()}
-                                  icon={<Icon name="outline-trash" size="small" />}
+                                  icon={<Icon name="trash" />}
                                   onClick={() => confirm("one", [workspace()])}
                                 />
                               </>
