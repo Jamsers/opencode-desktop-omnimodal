@@ -118,6 +118,7 @@ describe("SessionModelRequest.unsupportedParts", () => {
     expect(unsupportedParts([message], capabilities(["text", "pdf"]))[0]?.content).toEqual(message.content)
   })
 
+
   test("returns the same messages when nothing is unsupported", () => {
     const messages = [
       Message.user([Message.text("hi"), { type: "media", media: Media.base64("aGVsbG8=", "image/png") }]),

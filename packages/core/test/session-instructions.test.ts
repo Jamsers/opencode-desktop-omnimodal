@@ -21,6 +21,7 @@ import { Permission } from "@opencode/core/permission"
 import { Project } from "@opencode/core/project"
 import { Provider } from "@opencode/core/provider"
 import { ReadTool } from "@opencode/core/tool/plugin/read"
+import { MediaConversion } from "@opencode/core/media-convert"
 import { ReadToolFileSystem } from "@opencode/core/tool/read-filesystem"
 import { SessionEvent } from "@opencode/core/session/event"
 import { SessionExecution } from "@opencode/core/session/execution"
@@ -46,9 +47,9 @@ const readToolNode = makeLocationNode({
   layer: Layer.effectDiscard(registerToolPlugin(ReadTool.Plugin)),
   deps: [
     Tool.node,
-    ReadToolFileSystem.node,
     FileAccess.node,
     Image.node,
+    MediaConversion.node,
     Permission.node,
     Session.node,
     SessionInstructions.node,
@@ -76,7 +77,6 @@ const testLayer = AppNodeBuilder.build(
     Location.node,
     FSUtil.node,
     FileAccess.node,
-    ReadToolFileSystem.node,
     readToolNode,
     Tool.node,
     PluginHooks.node,

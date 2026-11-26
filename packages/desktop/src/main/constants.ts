@@ -1,6 +1,5 @@
 import { app } from "electron"
-
-type Channel = "local" | "dev" | "beta" | "prod" | "omnimodal"
+import { resolveIdentity, type Channel } from "./identity"
 
 const raw = import.meta.env.OPENCODE_CHANNEL
 
@@ -9,25 +8,14 @@ export const CHANNEL: Channel =
 
 export const VERSION = app.isPackaged ? app.getVersion() : (process.env.OPENCODE_VERSION ?? app.getVersion())
 
-const appNames: Record<string, string> = {
-  dev: "OpenCode Dev",
-  beta: "OpenCode Beta",
-  prod: "OpenCode",
-  omnimodal: "OpenCode Omnimodal",
-}
+const identity = resolveIdentity(CHANNEL, app.isPackaged)
 
-const appIDs: Record<string, string> = {
-  dev: "ai.opencode.desktop.dev",
-  beta: "ai.opencode.desktop.beta",
-  prod: "ai.opencode.desktop",
-  omnimodal: "ai.opencode.desktop.omnimodal",
-}
+export const APP_NAME = identity.appName
 
-// Local renderer/server mode keeps the dev application identity.
-export const APP_NAME = app.isPackaged ? appNames[CHANNEL] : "OpenCode Dev"
+export const APP_ID = identity.appID
 
-export const APP_ID = app.isPackaged ? appIDs[CHANNEL] : "ai.opencode.desktop.dev"
+export const APP_USER_MODEL_ID = identity.appUserModelID
 
 // The fork swaps in place with official OpenCode: user data (settings, windows, drafts) is shared
 // with the stable channel while install and taskbar identity stay fork-specific.
-export const USER_DATA_ID = CHANNEL === "omnimodal" ? appIDs.prod : APP_ID
+export const USER_DATA_ID = CHANNEL === "omnimodal" ? resolveIdentity("prod", true).appID : APP_ID

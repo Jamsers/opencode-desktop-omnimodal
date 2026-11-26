@@ -85,6 +85,8 @@ export function TabNavItem(
     muted?: boolean
     /** Menu items shown above an open tab's own. */
     menuItems?: () => JSX.Element
+    /** Runs on a middle click for a row without close actions, such as a pinned session. */
+    onMiddleClick?: () => void
     fallbackTitle?: string
     fallbackDirectory?: string
     onNavigate: () => void
@@ -94,6 +96,7 @@ export function TabNavItem(
     pressed?: boolean
     hidden?: boolean
     orientation?: "horizontal" | "vertical"
+    contextMenuExtra?: () => JSX.Element
   },
 ) {
   const language = useLanguage()
@@ -459,8 +462,14 @@ export function TabNavItem(
         event.stopPropagation()
       }}
       onAuxClick={(event) => {
-        if (event.button !== MIDDLE_MOUSE_BUTTON || !actions) return
-        closeTab(event)
+        if (event.button !== MIDDLE_MOUSE_BUTTON) return
+
+        if (actions) return closeTab(event)
+
+        if (!props.onMiddleClick) return
+        event.preventDefault()
+        event.stopPropagation()
+        props.onMiddleClick()
       }}
     >
       <Show when={promptPulse()} keyed>
@@ -668,6 +677,14 @@ export function TabNavItem(
                 {language.t("common.export")}…
               </Menu.Item>
               <SessionReadMenuItem server={props.server} session={props.session} />
+              <Show when={props.contextMenuExtra}>
+                {(extra) => (
+                  <>
+                    <Menu.Separator />
+                    {extra()()}
+                  </>
+                )}
+              </Show>
               <Menu.Separator />
               <TabCloseMenuItems
                 orientation={props.orientation}
@@ -723,6 +740,7 @@ export function DraftTabItem(
     pressed?: boolean
     hidden?: boolean
     orientation?: "horizontal" | "vertical"
+    contextMenuExtra?: () => JSX.Element
   },
 ) {
   const language = useLanguage()
@@ -852,6 +870,14 @@ export function DraftTabItem(
       </div>
       <Menu.Context.Portal>
         <Menu.Context.Content>
+          <Show when={props.contextMenuExtra}>
+            {(extra) => (
+              <>
+                {extra()()}
+                <Menu.Separator />
+              </>
+            )}
+          </Show>
           <TabCloseMenuItems
             orientation={props.orientation}
             onClose={props.onClose}
